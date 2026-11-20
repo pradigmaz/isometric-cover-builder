@@ -139,7 +139,11 @@ export const IsometricCanvas: React.FC = () => {
   const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
     if (panRef.current.isPanning) {
       panRef.current.isPanning = false;
-      (e.currentTarget as Element).releasePointerCapture?.(e.pointerId);
+      try {
+        (e.currentTarget as Element).releasePointerCapture?.(e.pointerId);
+      } catch {
+        // pointer capture may already be released
+      }
     }
 
     if (dragRef.current.isDragging && dragRef.current.uid) {
@@ -148,6 +152,23 @@ export const IsometricCanvas: React.FC = () => {
       if (currentItem) {
         updateItem(uid, { x: currentItem.x, y: currentItem.y }, true);
       }
+      dragRef.current.isDragging = false;
+      dragRef.current.uid = null;
+    }
+  };
+
+  // Pointer Cancel (symmetrically resets pointer dragging and panning state if interrupted)
+  const handlePointerCancel = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (panRef.current.isPanning) {
+      panRef.current.isPanning = false;
+      try {
+        (e.currentTarget as Element).releasePointerCapture?.(e.pointerId);
+      } catch {
+        // pointer capture may already be released
+      }
+    }
+
+    if (dragRef.current.isDragging) {
       dragRef.current.isDragging = false;
       dragRef.current.uid = null;
     }
@@ -225,12 +246,13 @@ export const IsometricCanvas: React.FC = () => {
         data-format-id={format}
         data-palette-id={paletteId}
         viewBox={`0 0 ${formatSpec.width} ${formatSpec.height}`}
-        className="w-full h-full max-h-[85vh] object-contain drop-shadow-2xl cursor-default"
-        style={cssTokensStyle}
+        className="w-full h-full max-h-[85vh] object-contain drop-shadow-2xl cursor-default touch-none"
+        style={{ ...cssTokensStyle, touchAction: 'none' }}
         onWheel={handleWheel}
         onPointerDown={handleCanvasPointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
       >
         {/* Canvas Background Rect */}
         <rect

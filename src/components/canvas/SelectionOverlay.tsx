@@ -38,10 +38,10 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
   const rectY = visualY - h / 2;
 
   // Floating toolbar coordinates centered above or below item
-  const toolbarWidth = 320;
-  const toolbarHeight = 42;
+  const toolbarWidth = 580;
+  const toolbarHeight = 52;
   const toolbarX = Math.round(item.x - toolbarWidth / 2);
-  const toolbarY = Math.max(12, Math.round(rectY - toolbarHeight - 10));
+  const toolbarY = Math.max(12, Math.round(rectY - toolbarHeight - 12));
 
   const handleRotate = (delta: number) => {
     const current = item.rotation || 0;
@@ -78,18 +78,18 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
         width={w}
         height={h}
         fill="none"
-        stroke="#3B82F6"
+        stroke="var(--token-primary)"
         strokeWidth="1.5"
         strokeDasharray="5 4"
         rx="8"
-        className="transition-all"
+        className="transition-all motion-reduce:transition-none"
       />
 
       {/* 4 Corner Control Handles */}
-      <circle cx={rectX} cy={rectY} r="4.5" fill="#FFFFFF" stroke="#3B82F6" strokeWidth="2" />
-      <circle cx={rectX + w} cy={rectY} r="4.5" fill="#FFFFFF" stroke="#3B82F6" strokeWidth="2" />
-      <circle cx={rectX} cy={rectY + h} r="4.5" fill="#FFFFFF" stroke="#3B82F6" strokeWidth="2" />
-      <circle cx={rectX + w} cy={rectY + h} r="4.5" fill="#FFFFFF" stroke="#3B82F6" strokeWidth="2" />
+      <circle cx={rectX} cy={rectY} r="4.5" fill="var(--token-light)" stroke="var(--token-primary)" strokeWidth="2" />
+      <circle cx={rectX + w} cy={rectY} r="4.5" fill="var(--token-light)" stroke="var(--token-primary)" strokeWidth="2" />
+      <circle cx={rectX} cy={rectY + h} r="4.5" fill="var(--token-light)" stroke="var(--token-primary)" strokeWidth="2" />
+      <circle cx={rectX + w} cy={rectY + h} r="4.5" fill="var(--token-light)" stroke="var(--token-primary)" strokeWidth="2" />
 
       {/* Floating Action Toolbar */}
       <foreignObject
@@ -99,115 +99,143 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
         height={toolbarHeight}
         className="overflow-visible pointer-events-auto"
       >
-        <div
-          className="flex items-center justify-between gap-1 px-2.5 py-1.5 rounded-full bg-neutral-900/95 text-white/90 shadow-2xl border border-white/20 backdrop-blur-md text-xs select-none"
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          {/* Rotate Controls */}
-          <div className="flex items-center gap-0.5">
+        <div className="flex justify-center w-full">
+          <div
+            role="toolbar"
+            aria-label="Свойства выделенного объекта"
+            className="bg-stone-900/90 text-white backdrop-blur-md rounded-full shadow-2xl px-2.5 py-1.5 flex items-center gap-1.5 border border-white/10 text-xs select-none"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {/* Rotate Controls */}
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => handleRotate(-30)}
+                title="Повернуть на -30°"
+                aria-label="Повернуть на -30°"
+                className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-white/15 active:bg-white/25 text-stone-200 hover:text-white transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRotate(30)}
+                title="Повернуть на +30°"
+                aria-label="Повернуть на +30°"
+                className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-white/15 active:bg-white/25 text-stone-200 hover:text-white transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
+              >
+                <RotateCw className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="w-[1px] h-4 bg-white/20 mx-0.5" aria-hidden="true" />
+
+            {/* Scale Controls */}
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => handleScale(-0.1)}
+                title="Уменьшить масштаб (-10%)"
+                aria-label="Уменьшить масштаб (-10%)"
+                className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-white/15 active:bg-white/25 text-stone-200 hover:text-white transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <span className="font-mono text-[11px] w-9 text-center text-white/70 select-none">
+                {Math.round((item.scale || 1) * 100)}%
+              </span>
+              <button
+                type="button"
+                onClick={() => handleScale(0.1)}
+                title="Увеличить масштаб (+10%)"
+                aria-label="Увеличить масштаб (+10%)"
+                className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-white/15 active:bg-white/25 text-stone-200 hover:text-white transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="w-[1px] h-4 bg-white/20 mx-0.5" aria-hidden="true" />
+
+            {/* Layer Reorder */}
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => onBringForward(item.uid)}
+                title="Слой выше"
+                aria-label="Слой выше"
+                className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-white/15 active:bg-white/25 text-stone-200 hover:text-white transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
+              >
+                <ArrowUp className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onSendBackward(item.uid)}
+                title="Слой ниже"
+                aria-label="Слой ниже"
+                className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-white/15 active:bg-white/25 text-stone-200 hover:text-white transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
+              >
+                <ArrowDown className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="w-[1px] h-4 bg-white/20 mx-0.5" aria-hidden="true" />
+
+            {/* Size & Role Toggles */}
             <button
-              onClick={() => handleRotate(-30)}
-              title="Повернуть на -30°"
-              className="p-1 hover:bg-white/20 hover:text-white rounded-md transition-colors"
+              type="button"
+              onClick={toggleSize}
+              title={`Переключить размер (${item.size === 'L' ? 'Герой L' : 'Деталь S'})`}
+              aria-label={`Переключить размер (${item.size === 'L' ? 'Герой L' : 'Деталь S'})`}
+              className="min-w-[36px] min-h-[36px] px-2 rounded-full font-bold text-[11px] bg-white/10 hover:bg-white/20 active:bg-white/30 text-white transition-colors motion-reduce:transition-none flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              {item.size}
             </button>
             <button
-              onClick={() => handleRotate(30)}
-              title="Повернуть на +30°"
-              className="p-1 hover:bg-white/20 hover:text-white rounded-md transition-colors"
+              type="button"
+              onClick={toggleRole}
+              title={item.role === 'foreground' ? 'Сделать силуэтом (Ghost)' : 'Сделать основным (Main)'}
+              aria-label={item.role === 'foreground' ? 'Сделать силуэтом (Ghost)' : 'Сделать основным (Main)'}
+              className={`min-w-[36px] min-h-[36px] px-2.5 rounded-full text-[11px] font-semibold transition-colors motion-reduce:transition-none flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300 ${
+                item.role === 'ghost'
+                  ? 'bg-amber-500/30 text-amber-300 hover:bg-amber-500/40'
+                  : 'bg-white/10 hover:bg-white/20 active:bg-white/30 text-white'
+              }`}
             >
-              <RotateCw className="w-3.5 h-3.5" />
+              {item.role === 'ghost' ? 'Ghost' : 'Main'}
+            </button>
+            <button
+              type="button"
+              onClick={toggleFlip}
+              title="Отразить по горизонтали"
+              aria-label="Отразить по горизонтали"
+              className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-white/15 active:bg-white/25 text-stone-200 hover:text-white transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
+            >
+              <FlipHorizontal className="w-4 h-4" />
+            </button>
+
+            <div className="w-[1px] h-4 bg-white/20 mx-0.5" aria-hidden="true" />
+
+            {/* Duplicate & Delete */}
+            <button
+              type="button"
+              onClick={() => onDuplicate(item.uid)}
+              title="Дублировать объект"
+              aria-label="Дублировать объект"
+              className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-white/15 active:bg-white/25 text-stone-200 hover:text-white transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onRemove(item.uid)}
+              title="Удалить объект"
+              aria-label="Удалить объект"
+              className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-rose-500/30 active:bg-rose-500/40 text-rose-300 hover:text-rose-100 transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+            >
+              <Trash2 className="w-4 h-4" />
             </button>
           </div>
-
-          <div className="w-[1px] h-3.5 bg-white/20" />
-
-          {/* Scale Controls */}
-          <div className="flex items-center gap-0.5">
-            <button
-              onClick={() => handleScale(-0.1)}
-              title="Уменьшить масштаб (-10%)"
-              className="p-1 hover:bg-white/20 hover:text-white rounded-md transition-colors"
-            >
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-            <span className="font-mono text-[10px] w-8 text-center text-white/70">
-              {Math.round((item.scale || 1) * 100)}%
-            </span>
-            <button
-              onClick={() => handleScale(0.1)}
-              title="Увеличить масштаб (+10%)"
-              className="p-1 hover:bg-white/20 hover:text-white rounded-md transition-colors"
-            >
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="w-[1px] h-3.5 bg-white/20" />
-
-          {/* Layer Reorder */}
-          <div className="flex items-center gap-0.5">
-            <button
-              onClick={() => onBringForward(item.uid)}
-              title="Слой выше"
-              className="p-1 hover:bg-white/20 hover:text-white rounded-md transition-colors"
-            >
-              <ArrowUp className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => onSendBackward(item.uid)}
-              title="Слой ниже"
-              className="p-1 hover:bg-white/20 hover:text-white rounded-md transition-colors"
-            >
-              <ArrowDown className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="w-[1px] h-3.5 bg-white/20" />
-
-          {/* Size & Role Toggles */}
-          <button
-            onClick={toggleSize}
-            title={`Переключить размер (${item.size === 'L' ? 'Герой L' : 'Деталь S'})`}
-            className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-white/10 hover:bg-white/25 transition-colors"
-          >
-            {item.size}
-          </button>
-          <button
-            onClick={toggleRole}
-            title={item.role === 'foreground' ? 'Сделать силуэтом (Ghost)' : 'Сделать основным (Main)'}
-            className={`px-1.5 py-0.5 rounded text-[10px] transition-colors ${
-              item.role === 'ghost' ? 'bg-amber-500/30 text-amber-300 font-semibold' : 'bg-white/10 hover:bg-white/25'
-            }`}
-          >
-            {item.role === 'ghost' ? 'Ghost' : 'Main'}
-          </button>
-          <button
-            onClick={toggleFlip}
-            title="Отразить по горизонтали"
-            className="p-1 hover:bg-white/20 hover:text-white rounded-md transition-colors"
-          >
-            <FlipHorizontal className="w-3.5 h-3.5" />
-          </button>
-
-          <div className="w-[1px] h-3.5 bg-white/20" />
-
-          {/* Duplicate & Delete */}
-          <button
-            onClick={() => onDuplicate(item.uid)}
-            title="Дублировать объект"
-            className="p-1 hover:bg-white/20 hover:text-white rounded-md transition-colors"
-          >
-            <Copy className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => onRemove(item.uid)}
-            title="Удалить объект"
-            className="p-1 hover:bg-red-500/40 text-red-300 hover:text-red-100 rounded-md transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
         </div>
       </foreignObject>
     </g>
