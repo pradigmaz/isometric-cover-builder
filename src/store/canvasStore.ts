@@ -7,17 +7,19 @@ import {
   CanvasItem,
   ItemRole,
   LayoutMode,
+  PaletteConfig,
   PaletteId,
   ViewportState,
 } from '../types/schema';
 import { DEFAULT_FORMAT, getFormatSpec } from '../config/formats';
-import { DEFAULT_PALETTE } from '../config/palettes';
+import { DEFAULT_PALETTE, registerCustomPalette } from '../config/palettes';
 import { composeCover } from '../engine/composer';
 import { snapToIsoGrid } from '../engine/isometric';
 
 export interface SceneSnapshot {
   format: CanvasFormatId;
   paletteId: PaletteId;
+  customPalette?: PaletteConfig | null;
   layoutMode: LayoutMode;
   includeBackgrounds: boolean;
   items: CanvasItem[];
@@ -27,6 +29,7 @@ export interface SceneSnapshot {
 export interface CanvasStoreState {
   format: CanvasFormatId;
   paletteId: PaletteId;
+  customPalette: PaletteConfig | null;
   layoutMode: LayoutMode;
   includeBackgrounds: boolean;
   items: CanvasItem[];
@@ -44,6 +47,7 @@ export interface CanvasStoreState {
 
   setFormat: (format: CanvasFormatId) => void;
   setPalette: (paletteId: PaletteId) => void;
+  setCustomPalette: (palette: PaletteConfig | null) => void;
   setLayoutMode: (mode: LayoutMode) => void;
   setIncludeBackgrounds: (include: boolean) => void;
   setSelectedUid: (uid: string | null) => void;
@@ -85,6 +89,7 @@ const MAX_HISTORY = 30;
 function createSnapshot(state: {
   format: CanvasFormatId;
   paletteId: PaletteId;
+  customPalette?: PaletteConfig | null;
   layoutMode: LayoutMode;
   includeBackgrounds: boolean;
   items: CanvasItem[];
@@ -93,6 +98,7 @@ function createSnapshot(state: {
   return {
     format: state.format,
     paletteId: state.paletteId,
+    customPalette: state.customPalette ? JSON.parse(JSON.stringify(state.customPalette)) : null,
     layoutMode: state.layoutMode,
     includeBackgrounds: state.includeBackgrounds,
     items: JSON.parse(JSON.stringify(state.items)),
@@ -110,6 +116,7 @@ const INITIAL_ITEMS: CanvasItem[] = [
 export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   format: DEFAULT_FORMAT,
   paletteId: DEFAULT_PALETTE,
+  customPalette: null,
   layoutMode: 'headline',
   includeBackgrounds: true,
   items: INITIAL_ITEMS,
@@ -125,22 +132,19 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   canUndo: () => get().past.length > 0,
   canRedo: () => get().future.length > 0,
 
-  setFormat: (format) => {
-    const snap = createSnapshot(get());
-    set((s) => ({ format, past: [...s.past.slice(-MAX_HISTORY + 1), snap], future: [] }));
+  setFormat: (format) => set((s) => ({ format, past: [...s.past.slice(-MAX_HISTORY + 1), createSnapshot(get())], future: [] })),
+  setPalette: (paletteId) => set((s) => ({ paletteId, past: [...s.past.slice(-MAX_HISTORY + 1), createSnapshot(get())], future: [] })),
+  setCustomPalette: (customPalette) => {
+    registerCustomPalette(customPalette);
+    set((s) => ({
+      customPalette,
+      paletteId: customPalette ? (s.paletteId === 'custom' ? 'custom-alt' : 'custom') : DEFAULT_PALETTE,
+      past: [...s.past.slice(-MAX_HISTORY + 1), createSnapshot(get())],
+      future: [],
+    }));
   },
-  setPalette: (paletteId) => {
-    const snap = createSnapshot(get());
-    set((s) => ({ paletteId, past: [...s.past.slice(-MAX_HISTORY + 1), snap], future: [] }));
-  },
-  setLayoutMode: (layoutMode) => {
-    const snap = createSnapshot(get());
-    set((s) => ({ layoutMode, past: [...s.past.slice(-MAX_HISTORY + 1), snap], future: [] }));
-  },
-  setIncludeBackgrounds: (includeBackgrounds) => {
-    const snap = createSnapshot(get());
-    set((s) => ({ includeBackgrounds, past: [...s.past.slice(-MAX_HISTORY + 1), snap], future: [] }));
-  },
+  setLayoutMode: (layoutMode) => set((s) => ({ layoutMode, past: [...s.past.slice(-MAX_HISTORY + 1), createSnapshot(get())], future: [] })),
+  setIncludeBackgrounds: (includeBackgrounds) => set((s) => ({ includeBackgrounds, past: [...s.past.slice(-MAX_HISTORY + 1), createSnapshot(get())], future: [] })),
 
   setSelectedUid: (uid) => set({ selectedUid: uid }),
   selectItem: (uid) => set({ selectedUid: uid }),
@@ -296,9 +300,11 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     const currentSnap = createSnapshot(get());
     const previous = past[past.length - 1];
     const newPast = past.slice(0, -1);
+    registerCustomPalette(previous.customPalette ?? null);
     set({
       format: previous.format,
       paletteId: previous.paletteId,
+      customPalette: previous.customPalette ?? null,
       layoutMode: previous.layoutMode,
       includeBackgrounds: previous.includeBackgrounds,
       items: previous.items,
@@ -315,9 +321,11 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     const currentSnap = createSnapshot(get());
     const next = future[0];
     const newFuture = future.slice(1);
+    registerCustomPalette(next.customPalette ?? null);
     set({
       format: next.format,
       paletteId: next.paletteId,
+      customPalette: next.customPalette ?? null,
       layoutMode: next.layoutMode,
       includeBackgrounds: next.includeBackgrounds,
       items: next.items,

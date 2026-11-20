@@ -236,7 +236,7 @@ export const IsometricCanvas: React.FC = () => {
 
   return (
     <div
-      className="relative w-full h-full flex items-center justify-center overflow-hidden select-none bg-neutral-950/60"
+      className="relative w-full h-full flex items-center justify-center p-4 sm:p-6 lg:p-8 overflow-hidden select-none bg-stone-200/90"
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
@@ -246,7 +246,7 @@ export const IsometricCanvas: React.FC = () => {
         data-format-id={format}
         data-palette-id={paletteId}
         viewBox={`0 0 ${formatSpec.width} ${formatSpec.height}`}
-        className="w-full h-full max-h-[85vh] object-contain drop-shadow-2xl cursor-default touch-none"
+        className="w-full h-full max-w-full max-h-full object-contain shadow-2xl ring-1 ring-stone-900/10 overflow-hidden rounded-xs cursor-default touch-none"
         style={{ ...cssTokensStyle, touchAction: 'none' }}
         onWheel={handleWheel}
         onPointerDown={handleCanvasPointerDown}
@@ -254,6 +254,12 @@ export const IsometricCanvas: React.FC = () => {
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
       >
+        <defs>
+          <clipPath id="canvas-artboard-clip">
+            <rect width={formatSpec.width} height={formatSpec.height} />
+          </clipPath>
+        </defs>
+
         {/* Canvas Background Rect */}
         <rect
           id="canvas-bg-rect"
@@ -287,8 +293,8 @@ export const IsometricCanvas: React.FC = () => {
             </g>
           )}
 
-          {/* Canvas Items in Hybrid Depth Sorted Order */}
-          <g id="canvas-items-layer">
+          {/* Canvas Items in Hybrid Depth Sorted Order (clipped to artboard) */}
+          <g id="canvas-items-layer" clipPath="url(#canvas-artboard-clip)">
             {sortedItems.map((item) => (
               <CanvasItemView
                 key={item.uid}
@@ -304,6 +310,7 @@ export const IsometricCanvas: React.FC = () => {
           {selectedItem && (
             <SelectionOverlay
               item={selectedItem}
+              canvasWidth={formatSpec.width}
               onUpdate={updateItem}
               onRemove={removeItem}
               onBringForward={bringForward}

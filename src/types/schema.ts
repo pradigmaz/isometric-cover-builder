@@ -25,7 +25,7 @@ export type CanvasFormatId = 'og' | '16:9' | '1:1' | '9:16';
 
 export type LayoutMode = 'headline' | 'offset' | 'centered';
 
-export type PaletteId = 'warm-pastel' | 'fresh-mint' | 'soft-coral';
+export type PaletteId = 'warm-pastel' | 'fresh-mint' | 'soft-coral' | 'custom' | (string & {});
 
 /** Канонические размеры ассетов из Figma */
 export const ASSET_VIEWBOX_SIZE: Record<AssetSize, { width: number; height: number }> = {
@@ -156,6 +156,7 @@ export interface CanvasState {
   // --- Сериализуемое состояние сцены (Undo/Redo через zundo) ---
   format: CanvasFormatId;
   paletteId: PaletteId;
+  customPalette?: PaletteConfig | null;
   layoutMode: LayoutMode;
   includeBackgrounds: boolean;
   items: CanvasItem[];

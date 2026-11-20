@@ -14,6 +14,7 @@ import { CanvasItem } from '../../types/schema';
 
 export interface SelectionOverlayProps {
   item: CanvasItem;
+  canvasWidth?: number;
   onUpdate: (uid: string, patch: Partial<CanvasItem>, recordHistory?: boolean) => void;
   onRemove: (uid: string) => void;
   onBringForward: (uid: string) => void;
@@ -23,6 +24,7 @@ export interface SelectionOverlayProps {
 
 export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
   item,
+  canvasWidth = 1200,
   onUpdate,
   onRemove,
   onBringForward,
@@ -37,11 +39,18 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
   const rectX = item.x - w / 2;
   const rectY = visualY - h / 2;
 
-  // Floating toolbar coordinates centered above or below item
-  const toolbarWidth = 580;
-  const toolbarHeight = 52;
-  const toolbarX = Math.round(item.x - toolbarWidth / 2);
-  const toolbarY = Math.max(12, Math.round(rectY - toolbarHeight - 12));
+  // Sleek compact floating toolbar (toolbarWidth = 360 -> 390) with intelligent flipping and clamping
+  const toolbarWidth = 390;
+  const toolbarHeight = 48;
+
+  // Intelligent vertical flipping: flip below object if it would collide with the top bar
+  const fitsAbove = rectY - toolbarHeight - 16 >= 20;
+  const toolbarY = fitsAbove ? Math.round(rectY - toolbarHeight - 16) : Math.round(rectY + h + 16);
+
+  // Horizontal clamping within [12, canvasWidth - toolbarWidth - 12]
+  const minX = 12;
+  const maxX = Math.max(minX, canvasWidth - toolbarWidth - 12);
+  const toolbarX = Math.max(minX, Math.min(maxX, Math.round(item.x - toolbarWidth / 2)));
 
   const handleRotate = (delta: number) => {
     const current = item.rotation || 0;
@@ -53,16 +62,6 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
     const current = item.scale || 1;
     const next = Math.max(0.3, Math.min(2.5, +(current + delta).toFixed(2)));
     onUpdate(item.uid, { scale: next }, true);
-  };
-
-  const toggleSize = () => {
-    const nextSize = item.size === 'L' ? 'S' : 'L';
-    onUpdate(item.uid, { size: nextSize }, true);
-  };
-
-  const toggleRole = () => {
-    const nextRole = item.role === 'foreground' ? 'ghost' : 'foreground';
-    onUpdate(item.uid, { role: nextRole, opacity: nextRole === 'ghost' ? 0.22 : 1 }, true);
   };
 
   const toggleFlip = () => {
@@ -103,7 +102,7 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
           <div
             role="toolbar"
             aria-label="Свойства выделенного объекта"
-            className="bg-stone-900/90 text-white backdrop-blur-md rounded-full shadow-2xl px-2.5 py-1.5 flex items-center gap-1.5 border border-white/10 text-xs select-none"
+            className="bg-stone-900/90 text-white backdrop-blur-md rounded-full shadow-2xl px-2.5 py-1 flex items-center gap-1 border border-white/10 text-xs select-none"
             onPointerDown={(e) => e.stopPropagation()}
           >
             {/* Rotate Controls */}
@@ -115,7 +114,7 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
                 aria-label="Повернуть на -30°"
                 className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-white/15 active:bg-white/25 text-stone-200 hover:text-white transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
               >
-                <RotateCcw className="w-4 h-4" />
+                <RotateCcw className="w-3.5 h-3.5" />
               </button>
               <button
                 type="button"
@@ -124,11 +123,11 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
                 aria-label="Повернуть на +30°"
                 className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-white/15 active:bg-white/25 text-stone-200 hover:text-white transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
               >
-                <RotateCw className="w-4 h-4" />
+                <RotateCw className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            <div className="w-[1px] h-4 bg-white/20 mx-0.5" aria-hidden="true" />
+            <div className="w-[1px] h-3.5 bg-white/20 mx-0.5" aria-hidden="true" />
 
             {/* Scale Controls */}
             <div className="flex items-center gap-0.5">
@@ -139,7 +138,7 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
                 aria-label="Уменьшить масштаб (-10%)"
                 className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-white/15 active:bg-white/25 text-stone-200 hover:text-white transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
               >
-                <ZoomOut className="w-4 h-4" />
+                <ZoomOut className="w-3.5 h-3.5" />
               </button>
               <span className="font-mono text-[11px] w-9 text-center text-white/70 select-none">
                 {Math.round((item.scale || 1) * 100)}%
@@ -151,11 +150,11 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
                 aria-label="Увеличить масштаб (+10%)"
                 className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-white/15 active:bg-white/25 text-stone-200 hover:text-white transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
               >
-                <ZoomIn className="w-4 h-4" />
+                <ZoomIn className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            <div className="w-[1px] h-4 bg-white/20 mx-0.5" aria-hidden="true" />
+            <div className="w-[1px] h-3.5 bg-white/20 mx-0.5" aria-hidden="true" />
 
             {/* Layer Reorder */}
             <div className="flex items-center gap-0.5">
@@ -166,7 +165,7 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
                 aria-label="Слой выше"
                 className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-white/15 active:bg-white/25 text-stone-200 hover:text-white transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
               >
-                <ArrowUp className="w-4 h-4" />
+                <ArrowUp className="w-3.5 h-3.5" />
               </button>
               <button
                 type="button"
@@ -175,35 +174,13 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
                 aria-label="Слой ниже"
                 className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-white/15 active:bg-white/25 text-stone-200 hover:text-white transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
               >
-                <ArrowDown className="w-4 h-4" />
+                <ArrowDown className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            <div className="w-[1px] h-4 bg-white/20 mx-0.5" aria-hidden="true" />
+            <div className="w-[1px] h-3.5 bg-white/20 mx-0.5" aria-hidden="true" />
 
-            {/* Size & Role Toggles */}
-            <button
-              type="button"
-              onClick={toggleSize}
-              title={`Переключить размер (${item.size === 'L' ? 'Герой L' : 'Деталь S'})`}
-              aria-label={`Переключить размер (${item.size === 'L' ? 'Герой L' : 'Деталь S'})`}
-              className="min-w-[36px] min-h-[36px] px-2 rounded-full font-bold text-[11px] bg-white/10 hover:bg-white/20 active:bg-white/30 text-white transition-colors motion-reduce:transition-none flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
-            >
-              {item.size}
-            </button>
-            <button
-              type="button"
-              onClick={toggleRole}
-              title={item.role === 'foreground' ? 'Сделать силуэтом (Ghost)' : 'Сделать основным (Main)'}
-              aria-label={item.role === 'foreground' ? 'Сделать силуэтом (Ghost)' : 'Сделать основным (Main)'}
-              className={`min-w-[36px] min-h-[36px] px-2.5 rounded-full text-[11px] font-semibold transition-colors motion-reduce:transition-none flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300 ${
-                item.role === 'ghost'
-                  ? 'bg-amber-500/30 text-amber-300 hover:bg-amber-500/40'
-                  : 'bg-white/10 hover:bg-white/20 active:bg-white/30 text-white'
-              }`}
-            >
-              {item.role === 'ghost' ? 'Ghost' : 'Main'}
-            </button>
+            {/* Flip Horizontal */}
             <button
               type="button"
               onClick={toggleFlip}
@@ -211,10 +188,10 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
               aria-label="Отразить по горизонтали"
               className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-white/15 active:bg-white/25 text-stone-200 hover:text-white transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
             >
-              <FlipHorizontal className="w-4 h-4" />
+              <FlipHorizontal className="w-3.5 h-3.5" />
             </button>
 
-            <div className="w-[1px] h-4 bg-white/20 mx-0.5" aria-hidden="true" />
+            <div className="w-[1px] h-3.5 bg-white/20 mx-0.5" aria-hidden="true" />
 
             {/* Duplicate & Delete */}
             <button
@@ -224,7 +201,7 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
               aria-label="Дублировать объект"
               className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-white/15 active:bg-white/25 text-stone-200 hover:text-white transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
             >
-              <Copy className="w-4 h-4" />
+              <Copy className="w-3.5 h-3.5" />
             </button>
             <button
               type="button"
@@ -233,7 +210,7 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
               aria-label="Удалить объект"
               className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-rose-500/30 active:bg-rose-500/40 text-rose-300 hover:text-rose-100 transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -241,3 +218,5 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
     </g>
   );
 };
+
+

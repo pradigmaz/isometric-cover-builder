@@ -8,18 +8,21 @@ import {
   Maximize2,
   ChevronDown,
   Check,
+  Plus,
 } from 'lucide-react';
 import { CanvasFormatId, PaletteId } from '../../types/schema';
 import { FORMAT_PRESETS } from '../../config/formats';
 import { PALETTE_PRESETS } from '../../config/palettes';
 import { useCanvasStore } from '../../store/canvasStore';
 import { exportSvg, exportPng } from '../../engine/exporter';
+import { PaletteUploadModal } from './PaletteUploadModal';
 
 export const StudioHeader: React.FC = () => {
   const format = useCanvasStore((state) => state.format);
   const setFormat = useCanvasStore((state) => state.setFormat);
   const paletteId = useCanvasStore((state) => state.paletteId);
   const setPalette = useCanvasStore((state) => state.setPalette);
+  const customPalette = useCanvasStore((state) => state.customPalette);
 
   const snapToGrid = useCanvasStore((state) => state.snapToGrid);
   const toggleSnapToGrid = useCanvasStore((state) => state.toggleSnapToGrid);
@@ -33,6 +36,7 @@ export const StudioHeader: React.FC = () => {
   const canRedo = useCanvasStore((state) => (typeof state.canRedo === 'function' ? (state.canRedo as () => boolean)() : Boolean(state.canRedo)));
 
   const [isExporting, setIsExporting] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const closeExportPopover = () => {
     const popover = document.getElementById('export-popover');
@@ -169,11 +173,48 @@ export const StudioHeader: React.FC = () => {
             </button>
           );
         })}
+
+        {/* Custom palette tab when loaded */}
+        {customPalette && (
+          <button
+            type="button"
+            onClick={() => setPalette('custom')}
+            className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-all focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
+              paletteId.startsWith('custom')
+                ? 'bg-[var(--bg)] text-[var(--fg)] shadow-xs font-semibold ring-1 ring-[var(--border)]'
+                : 'text-[var(--fg-2)] hover:text-[var(--fg)]'
+            }`}
+            title={`Пользовательская палитра: ${customPalette.name}`}
+            aria-label={`Палитра ${customPalette.name}`}
+          >
+            <div className="flex -space-x-1 items-center">
+              {customPalette.figmaSwatches.map((color, idx) => (
+                <span
+                  key={idx}
+                  className="w-2.5 h-2.5 rounded-full border border-[var(--border)] shadow-2xs"
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+            <span className="hidden sm:inline text-[11px] font-medium">{customPalette.name}</span>
+          </button>
+        )}
+
+        {/* Upload Palette Button */}
+        <button
+          type="button"
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-[var(--accent)] hover:bg-[var(--bg)] transition-all font-medium border border-dashed border-[var(--accent)]/40 focus-visible:outline-2 focus-visible:outline-[var(--accent)] cursor-pointer"
+          title="Загрузить цветовую палитру (HEX / JSON)"
+          aria-label="Загрузить палитру"
+        >
+          <Plus className="w-3 h-3" />
+          <span className="hidden sm:inline text-[11px]">Загрузить</span>
+        </button>
       </div>
 
       {/* Tools: Undo/Redo, Grid, Snap, Viewport */}
       <div className="flex items-center gap-1">
-        {/* Undo: one-shot action button (strictly NO aria-pressed) */}
         <button
           type="button"
           onClick={() => undo()}
@@ -189,7 +230,6 @@ export const StudioHeader: React.FC = () => {
           <Undo2 className="w-3.5 h-3.5" />
         </button>
 
-        {/* Redo: one-shot action button (strictly NO aria-pressed) */}
         <button
           type="button"
           onClick={() => redo()}
@@ -207,7 +247,6 @@ export const StudioHeader: React.FC = () => {
 
         <div className="h-4 w-px bg-[var(--border)] mx-1" />
 
-        {/* Grid toggle: state toggle (MUST have aria-pressed) */}
         <button
           type="button"
           onClick={() => toggleShowGrid()}
@@ -223,7 +262,6 @@ export const StudioHeader: React.FC = () => {
           <Grid className="w-3.5 h-3.5" />
         </button>
 
-        {/* Snap toggle: state toggle (MUST have aria-pressed) */}
         <button
           type="button"
           onClick={() => toggleSnapToGrid()}
@@ -239,7 +277,6 @@ export const StudioHeader: React.FC = () => {
           <Magnet className="w-3.5 h-3.5" />
         </button>
 
-        {/* Reset viewport: one-shot action button (strictly NO aria-pressed) */}
         <button
           type="button"
           onClick={() => resetViewport()}
@@ -254,7 +291,6 @@ export const StudioHeader: React.FC = () => {
       {/* Export Button & Popover */}
       <div className="relative">
         <div className="flex rounded-lg shadow-xs">
-          {/* Main export trigger: one-shot action (strictly NO aria-pressed) */}
           <button
             type="button"
             onClick={handleExportSvg}
@@ -267,7 +303,6 @@ export const StudioHeader: React.FC = () => {
             <span>{isExporting ? 'Экспорт...' : 'Экспорт SVG'}</span>
           </button>
 
-          {/* Export dropdown trigger tethered anchor: one-shot action (strictly NO aria-pressed) */}
           <button
             type="button"
             disabled={isExporting}
@@ -281,7 +316,6 @@ export const StudioHeader: React.FC = () => {
           </button>
         </div>
 
-        {/* Native top-layer Popover */}
         <div
           id="export-popover"
           {...({ popover: 'auto' } as any)}
@@ -328,6 +362,8 @@ export const StudioHeader: React.FC = () => {
           </button>
         </div>
       </div>
+
+      <PaletteUploadModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </header>
   );
 };

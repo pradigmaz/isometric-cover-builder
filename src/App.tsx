@@ -136,7 +136,7 @@ export const App: React.FC = () => {
         </div>
 
         {/* Center: Interactive Native SVG Isometric Canvas */}
-        <main className="flex-1 h-full relative overflow-hidden flex flex-col bg-stone-200/50">
+        <main className="flex-1 h-full relative overflow-hidden flex flex-col">
           <IsometricCanvas />
         </main>
 

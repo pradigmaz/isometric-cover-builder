@@ -187,7 +187,7 @@ export function recommendPalette(
   if (requestedPalette && requestedPalette !== 'auto') {
     return requestedPalette;
   }
-  const votes: Record<PaletteId, number> = {
+  const votes: Record<string, number> = {
     'fresh-mint': 0,
     'warm-pastel': 0,
     'soft-coral': 0,
