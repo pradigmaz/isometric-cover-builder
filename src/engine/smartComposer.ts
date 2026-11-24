@@ -97,10 +97,12 @@ export function clampItemsToArtboard(
       }
     }
 
-    const minX = margin - minDx;
-    const maxX = spec.width - margin - maxDx;
-    const minY = margin - minDy;
-    const maxY = spec.height - margin - maxDy;
+    const effectiveMarginX = item.role === 'ghost' ? -(bounds.width * scale * 0.25) : margin;
+    const effectiveMarginY = item.role === 'ghost' ? -(bounds.height * scale * 0.25) : margin;
+    const minX = effectiveMarginX - minDx;
+    const maxX = spec.width - effectiveMarginX - maxDx;
+    const minY = effectiveMarginY - minDy;
+    const maxY = spec.height - effectiveMarginY - maxDy;
 
     const clampedX = minX > maxX ? Math.round(spec.width / 2) : Math.max(minX, Math.min(maxX, item.x));
     const clampedY = minY > maxY ? Math.round(spec.height / 2) : Math.max(minY, Math.min(maxY, item.y));
@@ -218,17 +220,26 @@ export function composeSmartHierarchy(
     return { scale: uniformScale, size: requests.length >= 3 ? 'S' : 'L' };
   };
 
-  if (bases.length > 0 && (archetype === 'substrate-platform' || requests.length <= 3)) {
+  if (bases.length > 0 && archetype === 'substrate-platform') {
     const primaryBase = bases[0];
     const baseCoords = format === '9:16'
       ? { x: centerX - cfg.stepDx * 0.4, y: centerY - cfg.stepDy * 0.6 }
       : { x: centerX - cfg.stepDx * 0.35, y: centerY + cfg.stepDy * 0.15 };
     const { scale: bScale, size: bSize } = computeItemScale(primaryBase, heroIdx === requests.indexOf(primaryBase), false);
 
+    const baseIsGhost =
+      includeBackgrounds &&
+      requests.length >= 3 &&
+      backgrounds.length === 0 &&
+      ((effectiveSeed !== undefined && effectiveSeed % 2 === 1) || primaryCandidates.length === 1) &&
+      (effectiveSeed === undefined || effectiveSeed % 2 === 1);
+
     result.push({
       uid: `item-${Date.now()}-${result.length}`, assetId: primaryBase.assetId, size: bSize,
       x: Math.round(baseCoords.x), y: Math.round(baseCoords.y), zHeight: 0, rotation: 0, scale: bScale,
-      manualLayerOffset: 0, role: 'foreground', opacity: 1,
+      manualLayerOffset: baseIsGhost ? -2 : 0,
+      role: baseIsGhost ? 'ghost' : 'foreground',
+      opacity: baseIsGhost ? 0.22 : 1,
     });
 
     backgrounds.forEach((bg, idx) => {
@@ -299,14 +310,23 @@ export function composeSmartHierarchy(
   if (includeBackgrounds && ambientIdx !== -1) {
     ghostIdx = ambientIdx;
   } else if (includeBackgrounds && requests.length >= 3) {
-    const nonHeroIndices = requests.map((_, i) => i).filter((i) => i !== heroIdx);
-    if (nonHeroIndices.length > 0) {
-      const backdropIdx = nonHeroIndices.find((i) => ['folder', 'notepad'].includes(requests[i].assetId));
-      if (backdropIdx !== undefined) {
-        ghostIdx = backdropIdx;
-      } else {
-        const pick = effectiveSeed !== undefined ? (effectiveSeed + reqHash) % nonHeroIndices.length : (nonHeroIndices.length - 1);
-        ghostIdx = nonHeroIndices[pick];
+    if (
+      primaryCandidates.length === 1 &&
+      effectiveSeed !== undefined &&
+      effectiveSeed % 2 === 1 &&
+      ['folder', 'notepad'].includes(requests[heroIdx].assetId)
+    ) {
+      ghostIdx = heroIdx;
+    } else {
+      const nonHeroIndices = requests.map((_, i) => i).filter((i) => i !== heroIdx);
+      if (nonHeroIndices.length > 0) {
+        const backdropIdx = nonHeroIndices.find((i) => ['folder', 'notepad'].includes(requests[i].assetId));
+        if (backdropIdx !== undefined) {
+          ghostIdx = backdropIdx;
+        } else {
+          const pick = effectiveSeed !== undefined ? (effectiveSeed + reqHash) % nonHeroIndices.length : (nonHeroIndices.length - 1);
+          ghostIdx = nonHeroIndices[pick];
+        }
       }
     }
   }

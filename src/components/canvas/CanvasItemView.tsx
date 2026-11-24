@@ -26,9 +26,7 @@ export const CanvasItemView: React.FC<CanvasItemViewProps> = memo(({
 
   const transform = `translate(${item.x}, ${visualY}) rotate(${rotation}) scale(${scaleX}, ${scaleY}) translate(-${center}, -${center})`;
   const isGhost = item.role === 'ghost';
-  const effectiveOpacity = isGhost
-    ? (item.opacity ?? 0.22)
-    : (item.opacity ?? 1);
+  const effectiveOpacity = isGhost ? 1 : (item.opacity ?? 1);
 
   return (
     <g

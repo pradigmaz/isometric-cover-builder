@@ -192,20 +192,12 @@ export function resolvePairingFromMetaphor(prompt: string, seed?: number): Canon
 
 function isExactCanonicalCombination(assets: AssetId[]): CanonicalCompositionId | null {
   const set = new Set(assets);
-  if (set.has('notepad') && set.has('smartphone') && set.size === 2) return 'book-phone';
-  if (set.has('smartphone') && set.has('puzzle') && set.size === 2) return 'phone-puzzles';
-  if (set.has('folder') && (set.has('wallet') || set.has('coin')) && !set.has('lamp') && !set.has('notepad')) {
-    return 'folder-wallet-coin';
-  }
-  if (set.has('headphones') && !set.has('wallet') && !set.has('folder') && !set.has('lamp')) {
-    return 'headphones-flowers';
-  }
-  if (set.has('lamp') && (set.has('wallet') || set.has('coin')) && !set.has('notepad') && !set.has('folder')) {
-    return 'lamp-wallet-coin';
-  }
-  if (set.has('notepad') && (set.has('puzzle') || set.has('pen')) && !set.has('smartphone') && !set.has('wallet') && !set.has('lamp')) {
-    return 'book-puzzles-pen';
-  }
+  if (set.size === 2 && set.has('notepad') && set.has('smartphone')) return 'book-phone';
+  if (set.size === 2 && set.has('smartphone') && set.has('puzzle')) return 'phone-puzzles';
+  if (set.size === 3 && set.has('folder') && set.has('wallet') && set.has('coin')) return 'folder-wallet-coin';
+  if (set.size === 2 && set.has('headphones') && set.has('flowers_vase')) return 'headphones-flowers';
+  if (set.size === 3 && set.has('lamp') && set.has('wallet') && set.has('coin')) return 'lamp-wallet-coin';
+  if (set.size === 3 && set.has('notepad') && set.has('puzzle') && set.has('pen')) return 'book-puzzles-pen';
   return null;
 }
 
@@ -274,17 +266,40 @@ export function generateCover(request: AICompositionRequest): AICompositionRespo
   const canonicalId = isExactCanonicalCombination(assetIds);
   if (canonicalId) {
     const pairingConfig = CANONICAL_COMPOSITIONS[canonicalId];
+    if (request.seed !== undefined && request.seed !== 0) {
+      const rawItems = composeSmartHierarchy(
+        componentRequests,
+        format,
+        resolvedLayout,
+        request.includeBackgrounds,
+        request.seed
+      );
+      const items = clampItemsToArtboard(
+        enforceAntiClumping(applySeedVariation(rawItems, request.seed), format),
+        format
+      );
+      const recommendedPalette: PaletteId = resolveDynamicPalette(request.seed, request.paletteId);
+
+      return {
+        items,
+        recommendedPalette,
+        resolvedLayout,
+        rationale: `Вариация пары #${pairingConfig.pairingNumber}: «${pairingConfig.titleRu}» (${pairingConfig.descriptionRu}).`,
+        source: 'offline-heuristic',
+      };
+    }
+
     const rawItems = applyIncludeBackgrounds(
       getCanonicalComposition(pairingConfig.id, format),
       request.includeBackgrounds
     );
 
     const arranged = rearrangeItemsForLayout(rawItems, resolvedLayout, format);
-    const items = clampItemsToArtboard(applySeedVariation(arranged, request.seed), format);
+    const items = clampItemsToArtboard(arranged, format);
     const recommendedPalette: PaletteId =
       request.paletteId && request.paletteId !== 'auto'
         ? request.paletteId
-        : (request.seed !== undefined ? resolveDynamicPalette(request.seed) : pairingConfig.recommendedPalette);
+        : pairingConfig.recommendedPalette;
 
     return {
       items,
@@ -321,17 +336,49 @@ export function generateCover(request: AICompositionRequest): AICompositionRespo
 
   // 3. Fallback to metaphor resolver:
   const pairingConfig = resolveCanonicalPairing(request.prompt, request.seed);
+  if (request.seed !== undefined && request.seed !== 0) {
+    const canonicalItems = getCanonicalComposition(pairingConfig.id, format);
+    const metaphorRequests: ParsedItemRequest[] = canonicalItems.map((it) => ({ assetId: it.assetId }));
+    if (
+      request.includeBackgrounds !== false &&
+      metaphorRequests.length === 2 &&
+      !metaphorRequests.some((r) => r.assetId === 'lamp' || r.assetId === 'flowers_vase')
+    ) {
+      metaphorRequests.push({ assetId: Math.abs(request.seed) % 2 === 0 ? 'lamp' : 'flowers_vase' });
+    }
+    const rawItems = composeSmartHierarchy(
+      metaphorRequests,
+      format,
+      resolvedLayout,
+      request.includeBackgrounds,
+      request.seed
+    );
+    const items = clampItemsToArtboard(
+      enforceAntiClumping(applySeedVariation(rawItems, request.seed), format),
+      format
+    );
+    const recommendedPalette: PaletteId = resolveDynamicPalette(request.seed, request.paletteId);
+
+    return {
+      items,
+      recommendedPalette,
+      resolvedLayout,
+      rationale: `Вариация пары #${pairingConfig.pairingNumber}: «${pairingConfig.titleRu}» (${pairingConfig.descriptionRu}).`,
+      source: 'offline-heuristic',
+    };
+  }
+
   const rawItems = applyIncludeBackgrounds(
     getCanonicalComposition(pairingConfig.id, format),
     request.includeBackgrounds
   );
 
   const arranged = rearrangeItemsForLayout(rawItems, resolvedLayout, format);
-  const items = clampItemsToArtboard(applySeedVariation(arranged, request.seed), format);
+  const items = clampItemsToArtboard(arranged, format);
   const recommendedPalette: PaletteId =
     request.paletteId && request.paletteId !== 'auto'
       ? request.paletteId
-      : (request.seed !== undefined ? resolveDynamicPalette(request.seed) : pairingConfig.recommendedPalette);
+      : pairingConfig.recommendedPalette;
 
   return {
     items,

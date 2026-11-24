@@ -36,7 +36,7 @@ export function renderAssetSvgString(
   // Directly render the asset component (which renders AssetContainer with exact viewBox 600x600 for L / 200x200 for S
   // and preserveAspectRatio="xMidYMid meet"), eliminating double-nested <svg> tags that break Figma import.
   const isGhost = role === 'ghost';
-  const ghostOpacity = palette.ghostOpacity ?? 0.22;
+  const ghostOpacity = 1;
 
   let rawXml = renderToStaticMarkup(
     React.createElement(entry.Component, {
@@ -115,7 +115,7 @@ export function renderCoverSvgString(
           const rotation = item.rotation || 0;
           const transform = `translate(${item.x}, ${visualY}) rotate(${rotation}) scale(${scaleX}, ${scaleY}) translate(-${center}, -${center})`;
           const isGhost = item.role === 'ghost';
-          const effectiveOpacity = isGhost ? (item.opacity ?? 0.22) : (item.opacity ?? 1);
+          const effectiveOpacity = isGhost ? 1 : (item.opacity ?? 1);
 
           return React.createElement(
             'g',

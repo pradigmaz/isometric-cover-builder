@@ -124,22 +124,22 @@ export const CANONICAL_COMPOSITIONS: Record<CanonicalCompositionId, CanonicalCom
       '1:1': [
         { assetId: 'folder', size: 'L', role: 'foreground', x: 620, y: 380, scale: 1.8, rotation: 0, manualLayerOffset: 0 },
         { assetId: 'wallet', size: 'L', role: 'foreground', x: 380, y: 660, scale: 1.5, rotation: 0, manualLayerOffset: 1 },
-        { assetId: 'coin', size: 'L', role: 'foreground', x: 700, y: 720, scale: 1.45, rotation: 0, manualLayerOffset: 2 },
+        { assetId: 'coin', size: 'S', role: 'foreground', x: 700, y: 720, scale: 1.45, rotation: 0, manualLayerOffset: 2 },
       ],
       '16:9': [
         { assetId: 'folder', size: 'L', role: 'foreground', x: 1060, y: 380, scale: 1.8, rotation: 0, manualLayerOffset: 0 },
         { assetId: 'wallet', size: 'L', role: 'foreground', x: 780, y: 660, scale: 1.5, rotation: 0, manualLayerOffset: 1 },
-        { assetId: 'coin', size: 'L', role: 'foreground', x: 1140, y: 720, scale: 1.45, rotation: 0, manualLayerOffset: 2 },
+        { assetId: 'coin', size: 'S', role: 'foreground', x: 1140, y: 720, scale: 1.45, rotation: 0, manualLayerOffset: 2 },
       ],
       '9:16': [
         { assetId: 'folder', size: 'L', role: 'foreground', x: 340, y: 280, scale: 3.3, rotation: 0, manualLayerOffset: 0 },
         { assetId: 'wallet', size: 'L', role: 'foreground', x: 340, y: 1440, scale: 2.75, rotation: 0, manualLayerOffset: 1 },
-        { assetId: 'coin', size: 'L', role: 'foreground', x: 760, y: 1560, scale: 2.2, rotation: 0, manualLayerOffset: 2 },
+        { assetId: 'coin', size: 'S', role: 'foreground', x: 760, y: 1560, scale: 2.2, rotation: 0, manualLayerOffset: 2 },
       ],
       og: [
         { assetId: 'folder', size: 'L', role: 'foreground', x: 640, y: 220, scale: 1.55, rotation: 0, manualLayerOffset: 0 },
         { assetId: 'wallet', size: 'L', role: 'foreground', x: 480, y: 380, scale: 1.40, rotation: 0, manualLayerOffset: 1 },
-        { assetId: 'coin', size: 'L', role: 'foreground', x: 720, y: 440, scale: 1.35, rotation: 0, manualLayerOffset: 2 },
+        { assetId: 'coin', size: 'S', role: 'foreground', x: 720, y: 440, scale: 1.35, rotation: 0, manualLayerOffset: 2 },
       ],
     },
   },
@@ -188,22 +188,22 @@ export const CANONICAL_COMPOSITIONS: Record<CanonicalCompositionId, CanonicalCom
       '1:1': [
         { assetId: 'lamp', size: 'L', role: 'ghost', x: 420, y: 400, scale: 1.6, rotation: 0, manualLayerOffset: -2, opacity: 0.22 },
         { assetId: 'wallet', size: 'L', role: 'foreground', x: 560, y: 580, scale: 1.5, rotation: 0, manualLayerOffset: 0 },
-        { assetId: 'coin', size: 'L', role: 'foreground', x: 780, y: 640, scale: 1.45, rotation: 0, manualLayerOffset: 1 },
+        { assetId: 'coin', size: 'S', role: 'foreground', x: 800, y: 640, scale: 1.45, rotation: 0, manualLayerOffset: 1 },
       ],
       '16:9': [
         { assetId: 'lamp', size: 'L', role: 'ghost', x: 800, y: 400, scale: 1.6, rotation: 0, manualLayerOffset: -2, opacity: 0.22 },
         { assetId: 'wallet', size: 'L', role: 'foreground', x: 960, y: 580, scale: 1.5, rotation: 0, manualLayerOffset: 0 },
-        { assetId: 'coin', size: 'L', role: 'foreground', x: 1180, y: 640, scale: 1.45, rotation: 0, manualLayerOffset: 1 },
+        { assetId: 'coin', size: 'S', role: 'foreground', x: 1210, y: 640, scale: 1.45, rotation: 0, manualLayerOffset: 1 },
       ],
       '9:16': [
         { assetId: 'lamp', size: 'L', role: 'ghost', x: 400, y: 560, scale: 3.0, rotation: 0, manualLayerOffset: -2, opacity: 0.22 },
         { assetId: 'wallet', size: 'L', role: 'foreground', x: 400, y: 1420, scale: 2.8, rotation: 0, manualLayerOffset: 0 },
-        { assetId: 'coin', size: 'L', role: 'foreground', x: 760, y: 1540, scale: 2.2, rotation: 0, manualLayerOffset: 1 },
+        { assetId: 'coin', size: 'S', role: 'foreground', x: 760, y: 1540, scale: 2.2, rotation: 0, manualLayerOffset: 1 },
       ],
       og: [
         { assetId: 'lamp', size: 'L', role: 'ghost', x: 480, y: 230, scale: 1.45, rotation: 0, manualLayerOffset: -2, opacity: 0.22 },
         { assetId: 'wallet', size: 'L', role: 'foreground', x: 600, y: 340, scale: 1.50, rotation: 0, manualLayerOffset: 0 },
-        { assetId: 'coin', size: 'L', role: 'foreground', x: 740, y: 410, scale: 1.35, rotation: 0, manualLayerOffset: 1 },
+        { assetId: 'coin', size: 'S', role: 'foreground', x: 850, y: 410, scale: 1.35, rotation: 0, manualLayerOffset: 1 },
       ],
     },
   },
