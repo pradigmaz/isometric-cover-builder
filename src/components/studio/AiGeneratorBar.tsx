@@ -48,9 +48,8 @@ export const AiGeneratorBar: React.FC<AiGeneratorBarProps> = ({ className = '' }
   const [templateNameInput, setTemplateNameInput] = useState('');
 
   const {
-    items, selectedUids = [], format, paletteId, layoutMode,
-    setFormat, setPalette, setLayoutMode, setItems, selectGroup,
-    isGenerating, generateCover,
+    items, selectedUids = [], format, paletteId, layoutMode, includeBackgrounds,
+    setFormat, setPalette, setLayoutMode, setIncludeBackgrounds, setItems, selectGroup, isGenerating, generateCover,
   } = useCanvasStore();
 
   useEffect(() => { setTemplates(loadUserTemplates()); }, []);
@@ -65,8 +64,10 @@ export const AiGeneratorBar: React.FC<AiGeneratorBarProps> = ({ className = '' }
     try {
       await generateCover({
         prompt: text || 'Изометрическая иллюстрация',
-        layoutMode, paletteId, includeBackgrounds: true,
-        seed: Math.floor(Math.random() * 100000),
+        layoutMode,
+        paletteId: 'auto',
+        includeBackgrounds,
+        seed: Math.floor(Math.random() * 1000000) + 1,
       });
     } catch (err) {
       console.error('Generation failed:', err);
@@ -74,9 +75,17 @@ export const AiGeneratorBar: React.FC<AiGeneratorBarProps> = ({ className = '' }
   };
 
   const handleReroll = async () => {
-    const activeText = (activeScenario === 1 ? scenario1Prompt : scenario2Prompt).trim() || 'Изометрическая композиция';
+    const rawText = activeScenario === 1 ? scenario1Prompt : scenario2Prompt;
+    const fallback = activeScenario === 1 ? 'Финтех и безопасность' : 'папка, кошелёк, монета';
+    const activeText = rawText.trim() || fallback;
     try {
-      await generateCover({ prompt: activeText, layoutMode, paletteId, includeBackgrounds: true, seed: Math.floor(Math.random() * 100000) });
+      await generateCover({
+        prompt: activeText,
+        layoutMode,
+        paletteId: 'auto',
+        includeBackgrounds,
+        seed: Math.floor(Math.random() * 1000000) + 1,
+      });
     } catch (err) {
       console.error('Re-roll failed:', err);
     }
@@ -183,42 +192,41 @@ export const AiGeneratorBar: React.FC<AiGeneratorBarProps> = ({ className = '' }
           </p>
         </div>
 
-        {/* 10 Registered Components Explanation & Interactive Chips */}
-        <div className="p-2.5 rounded-lg bg-stone-50 dark:bg-zinc-900/90 border border-stone-200 dark:border-zinc-800 space-y-1">
-          <div className="flex items-center justify-between text-[11px] font-semibold text-stone-800 dark:text-zinc-200">
-            <span>Компоненты библиотеки (10 векторных ассетов):</span>
+        {/* 10 Registered Components Explanation & Interactive Chips (Scenario 2 only) */}
+        {activeScenario === 2 && (
+          <div className="p-2.5 rounded-lg bg-stone-50 dark:bg-zinc-900/90 border border-stone-200 dark:border-zinc-800 space-y-1">
+            <div className="flex items-center justify-between text-[11px] font-semibold text-stone-800 dark:text-zinc-200">
+              <span>Компоненты библиотеки (10 векторных ассетов):</span>
+            </div>
+            <p className="text-[10px] text-stone-500 dark:text-zinc-400 leading-tight">
+              Итоговая композиция состоит только из этих 10 объектов. Кликните для добавления:
+            </p>
+            <div className="flex flex-wrap gap-1 pt-0.5">
+              {LIBRARY_ASSETS.map((asset) => {
+                const isSelected = scenario2Prompt.toLowerCase().includes(asset.label);
+                return (
+                  <button
+                    key={asset.id}
+                    type="button"
+                    onClick={() => handleToggleAssetTag(asset.label)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors cursor-pointer border ${
+                      isSelected
+                        ? 'bg-[var(--accent)] text-[var(--bg)] border-[var(--accent)] font-semibold shadow-2xs'
+                        : 'bg-[var(--surface)] dark:bg-zinc-800 hover:bg-[var(--border)] dark:hover:bg-zinc-700 text-[var(--fg)] dark:text-zinc-200 border-[var(--border)] dark:border-zinc-700/80'
+                    }`}
+                    title={`Добавить ${asset.nameRu} в запрос`}
+                  >
+                    {isSelected ? `✓ ${asset.nameRu}` : `+ ${asset.nameRu}`}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <p className="text-[10px] text-stone-500 dark:text-zinc-400 leading-tight">
-            Итоговая композиция состоит только из этих 10 объектов. Кликните для добавления:
-          </p>
-          <div className="flex flex-wrap gap-1 pt-0.5">
-            {LIBRARY_ASSETS.map((asset) => {
-              const isSelected = scenario2Prompt.toLowerCase().includes(asset.label);
-              return (
-                <button
-                  key={asset.id}
-                  type="button"
-                  onClick={() => {
-                    if (activeScenario === 1) setActiveScenario(2);
-                    handleToggleAssetTag(asset.label);
-                  }}
-                  className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors cursor-pointer border ${
-                    isSelected
-                      ? 'bg-[var(--accent)] text-[var(--bg)] border-[var(--accent)] font-semibold shadow-2xs'
-                      : 'bg-[var(--surface)] dark:bg-zinc-800 hover:bg-[var(--border)] dark:hover:bg-zinc-700 text-[var(--fg)] dark:text-zinc-200 border-[var(--border)] dark:border-zinc-700/80'
-                  }`}
-                  title={`Добавить ${asset.nameRu} в запрос`}
-                >
-                  {isSelected ? `✓ ${asset.nameRu}` : `+ ${asset.nameRu}`}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        )}
 
         {/* Input & Generate Box */}
         <div className="space-y-2">
-          <div className="flex flex-col rounded-lg border border-[var(--border)] dark:border-zinc-700 bg-[var(--bg)] dark:bg-zinc-900 hover:border-[var(--fg-2)] dark:hover:border-zinc-600 focus-within:border-[var(--accent)] transition-colors overflow-hidden">
+          <div className="flex flex-col rounded-lg border border-[var(--border)] dark:border-zinc-700 bg-[var(--bg)] dark:bg-zinc-900 hover:border-[var(--fg-2)] dark:hover:border-zinc-600 focus-within:border-[var(--accent)] focus-within:bg-white transition-colors overflow-hidden">
             <div className="flex items-center px-2.5 py-1.5">
               <Search className="w-3.5 h-3.5 text-[var(--fg-2)] dark:text-zinc-500 mr-2 shrink-0 pointer-events-none" />
               <input
@@ -236,15 +244,26 @@ export const AiGeneratorBar: React.FC<AiGeneratorBarProps> = ({ className = '' }
                 </button>
               )}
             </div>
-            <div className="p-1 border-t border-[var(--border)] dark:border-zinc-800 bg-[var(--surface)] dark:bg-zinc-900/50">
+            <div className="p-1 border-t border-[var(--border)] dark:border-zinc-800 bg-[var(--surface)] dark:bg-zinc-900/50 flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => handleGenerate()}
                 disabled={isGenerating || !currentPromptValue.trim()}
-                className="w-full flex items-center justify-center gap-1.5 bg-[var(--accent)] text-[var(--bg)] hover:opacity-90 px-3 py-1.5 rounded-md text-xs font-semibold transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-2xs"
+                className="flex-1 flex items-center justify-center gap-1.5 bg-[var(--accent)] text-[var(--bg)] hover:opacity-90 px-3 py-1.5 rounded-md text-xs font-semibold transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-2xs"
+                title="Сгенерировать композицию по текущему запросу"
               >
                 {isGenerating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300 dark:text-amber-500" />}
-                <span>{isGenerating ? 'Генерация...' : 'Сгенерировать композицию'}</span>
+                <span>{isGenerating ? 'Генерация...' : 'Сгенерировать'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleReroll}
+                disabled={isGenerating}
+                className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium bg-stone-100 dark:bg-zinc-800 hover:bg-stone-200 dark:hover:bg-zinc-700 text-stone-700 dark:text-zinc-300 border border-stone-200 dark:border-zinc-700 transition-colors disabled:opacity-50 cursor-pointer shadow-2xs shrink-0"
+                title="Перебросить вариант со случайным сидом"
+              >
+                <Dices className="w-3.5 h-3.5 text-stone-600 dark:text-zinc-400" />
+                <span>Другой вариант</span>
               </button>
             </div>
           </div>
@@ -262,6 +281,45 @@ export const AiGeneratorBar: React.FC<AiGeneratorBarProps> = ({ className = '' }
                 {preset}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Компоновка (3 варианта раскладки) */}
+        <div className="space-y-1.5 pt-2 border-t border-stone-200 dark:border-zinc-800">
+          <div className="flex items-center justify-between text-xs text-stone-600 dark:text-zinc-400">
+            <span className="font-semibold text-stone-800 dark:text-zinc-200">Компоновка</span>
+            <span className="text-[11px] text-stone-500 dark:text-zinc-400">3 варианта раскладки</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {([
+              { mode: 'centered', label: 'Собрано', sub: 'По центру' },
+              { mode: 'offset', label: 'Со смещением', sub: 'Диагональ' },
+              { mode: 'headline', label: 'Под заголовок', sub: 'Свободное поле' },
+            ] as const).map(({ mode, label, sub }) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setLayoutMode(mode)}
+                className={`py-1.5 px-2 rounded-lg border text-center transition-all cursor-pointer ${layoutMode === mode
+                  ? 'bg-[var(--accent)] text-[var(--bg)] border-[var(--accent)] shadow-2xs font-semibold'
+                  : 'bg-[var(--surface)] dark:bg-zinc-800 hover:bg-[var(--border)] dark:hover:bg-zinc-700 text-[var(--fg)] dark:text-zinc-300 border-[var(--border)] dark:border-zinc-700'}`}
+              >
+                <div className="font-semibold text-xs leading-tight">{label}</div>
+                <div className="text-[10px] text-stone-400 dark:text-zinc-400 leading-tight">{sub}</div>
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center justify-between p-2 rounded-lg bg-stone-50 dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 text-xs">
+            <span className="font-medium text-stone-700 dark:text-zinc-300">Фоновый силуэт</span>
+            <button
+              type="button"
+              onClick={() => setIncludeBackgrounds(!includeBackgrounds)}
+              className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer border ${includeBackgrounds
+                ? 'bg-[var(--accent)] text-[var(--bg)] border-[var(--accent)] shadow-2xs'
+                : 'bg-stone-200 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 border-stone-300 dark:border-zinc-700'}`}
+            >
+              {includeBackgrounds ? 'ВКЛ' : 'ВЫКЛ'}
+            </button>
           </div>
         </div>
 

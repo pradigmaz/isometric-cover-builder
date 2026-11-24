@@ -11,7 +11,6 @@ import { PluginElementsTab } from './PluginElementsTab';
 import { AssetId, AssetSize, CanvasFormatId, ItemRole, LayoutMode } from '../../types/schema';
 import { Box, Wand2, Sparkles, Shuffle, Search, X, ExternalLink, ClipboardPaste, Layers, Layout } from 'lucide-react';
 import { rearrangeItemsForLayout } from '../../store/layoutReorder';
-import { composeSmartHierarchy, ParsedItemRequest } from '../../engine/smartComposer';
 
 const CANONICAL_FORMATS = [
   { id: '16:9' as const, label: '16:9', dims: '1920×1080' },
@@ -96,9 +95,11 @@ export const PluginApp: React.FC = () => {
     if (!text) return;
     setActiveStoryId(null);
     await generateCover({
-      prompt: text, layoutMode,
-      paletteId,
-      includeBackgrounds, seed: Math.floor(Math.random() * 100000),
+      prompt: text,
+      layoutMode,
+      paletteId: 'auto',
+      includeBackgrounds,
+      seed: Math.floor(Math.random() * 1000000) + 1,
     });
   };
 
@@ -111,41 +112,32 @@ export const PluginApp: React.FC = () => {
     if (next.length > 0) handleSmartGenerate(newPrompt);
   };
 
-  const handleRandomComposition = () => {
+  const handleRandomComposition = async () => {
     const layoutOptions: LayoutMode[] = ['centered', 'offset', 'headline'];
     const chosenLayout = layoutOptions[Math.floor(Math.random() * layoutOptions.length)];
-    const chosenPalette = CANONICAL_SCHEMES[Math.floor(Math.random() * CANONICAL_SCHEMES.length)];
-
-    // 1 главный предмет на столе: книга, телефон, наушники или кошелек
-    const mainPool: AssetId[] = ['notepad', 'smartphone', 'headphones', 'wallet'];
-    // 1 деталь: пазлы, монета, ручка
-    const detailPool: AssetId[] = ['puzzle', 'coin', 'pen'];
-    // С вероятностью 50% — 1 фоновый силуэт: лампа или ваза
-    const bgPool: AssetId[] = ['lamp', 'flowers_vase'];
-
-    const chosenMain = mainPool[Math.floor(Math.random() * mainPool.length)];
-    const chosenDetail = detailPool[Math.floor(Math.random() * detailPool.length)];
-    const chosenBg = Math.random() < 0.5 ? bgPool[Math.floor(Math.random() * bgPool.length)] : null;
-
-    const requests: ParsedItemRequest[] = [
-      { assetId: chosenMain, size: 'L' },
-      { assetId: chosenDetail, size: 'L' },
+    const randomPresets = [
+      'Финтех и безопасность',
+      'UX дизайн',
+      'Креатив',
+      'Учёба',
+      'Музыка',
+      'Финансы',
+      'книга, телефон',
+      'папка, кошелёк, монета',
+      'наушники, цветы',
+      'лампа, кошелёк, монета',
     ];
-    if (chosenBg) {
-      requests.push({ assetId: chosenBg, size: 'L' });
-    }
-
-    const composedItems = composeSmartHierarchy(requests, format, chosenLayout, includeBackgrounds);
-
-    setPalette(chosenPalette.id);
-    setLayoutMode(chosenLayout);
+    const text = prompt.trim() || randomPresets[Math.floor(Math.random() * randomPresets.length)];
+    setPrompt(text);
     setActiveStoryId(null);
-    setItems(composedItems);
-
-    const promptNames = requests
-      .map((r) => LIBRARY_ASSET_CHIPS.find((c) => c.id === r.assetId)?.nameRu || r.assetId)
-      .join(', ');
-    setPrompt(promptNames);
+    setLayoutMode(chosenLayout);
+    await generateCover({
+      prompt: text,
+      layoutMode: chosenLayout,
+      paletteId: 'auto',
+      includeBackgrounds,
+      seed: Math.floor(Math.random() * 1000000) + 1,
+    });
   };
 
   const handleOpenWebStudio = () => {

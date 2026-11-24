@@ -12,10 +12,15 @@ export const PluginCoverPreview: React.FC = () => {
   const paletteId = useCanvasStore((state) => state.paletteId);
   const items = useCanvasStore((state) => state.items);
   const showGrid = useCanvasStore((state) => state.showGrid);
+  const includeBackgrounds = useCanvasStore((state) => state.includeBackgrounds);
 
   const spec = useMemo(() => getFormatSpec(format), [format]);
   const paletteConfig = useMemo(() => getPaletteConfig(paletteId), [paletteId]);
-  const sortedItems = useMemo(() => sortCanvasItems(items), [items]);
+  const visibleItems = useMemo(
+    () => (includeBackgrounds ? items : items.filter((it) => it.role !== 'ghost')),
+    [items, includeBackgrounds]
+  );
+  const sortedItems = useMemo(() => sortCanvasItems(visibleItems), [visibleItems]);
 
   const gridLines = useMemo(() => {
     if (!showGrid) return [];

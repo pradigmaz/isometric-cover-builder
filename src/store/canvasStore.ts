@@ -179,7 +179,7 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
       ? activeUids
       : activeUids.filter((uid) => {
           const item = state.items.find((it) => it.uid === uid);
-          return item?.role !== 'ghost' || item?.uid.startsWith('canonical-');
+          return item?.role !== 'ghost';
         });
     const shouldDeselectPrimary = !includeBackgrounds && state.items.find((it) => it.uid === state.selectedUid)?.role === 'ghost';
     const finalSelectedUid = shouldDeselectPrimary ? null : (nextSelectedUids[0] ?? null);
@@ -212,7 +212,7 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   },
   selectAll: () => {
     const state = get();
-    const visibleUids = state.items.filter((it) => state.includeBackgrounds || it.uid.startsWith('canonical-') || it.role !== 'ghost').map((it) => it.uid);
+    const visibleUids = state.items.filter((it) => state.includeBackgrounds || it.role !== 'ghost').map((it) => it.uid);
     set({ selectedUids: visibleUids, selectedUid: visibleUids[0] ?? null });
   },
   clearSelection: () => set({ selectedUid: null, selectedUids: [] }),
@@ -381,10 +381,13 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
           ? requestedPalette
           : res.recommendedPalette;
 
-      const arrangedItems = rearrangeItemsForLayout(res.items, effectiveLayout, state.format);
+      const finalItems =
+        targetLayout !== 'auto' && targetLayout !== res.resolvedLayout
+          ? rearrangeItemsForLayout(res.items, targetLayout, state.format)
+          : res.items;
 
       set((curr) => ({
-        items: arrangedItems,
+        items: finalItems,
         paletteId: effectivePalette,
         layoutMode: effectiveLayout,
         lastPrompt: prompt,

@@ -1,7 +1,6 @@
 import { CanvasFormatId, CanvasItem, LayoutMode, PaletteConfig, PaletteId } from '../types/schema';
 import { getFormatSpec } from '../config/formats';
 import { registerCustomPalette } from '../config/palettes';
-import { clampItemPosition } from '../components/canvas/canvasBoundaryClamping';
 
 export interface SceneSnapshot {
   format: CanvasFormatId;
@@ -168,14 +167,20 @@ export function rearrangeItemsForLayout(
 
   if (dx === 0 && dy === 0) return items;
 
-  return items.map((it) => {
-    const targetX = it.x + dx;
-    const targetY = it.y + dy;
-    const clamped = clampItemPosition(it, targetX, targetY, spec.width, spec.height);
-    return {
-      ...it,
-      x: clamped.x,
-      y: clamped.y,
-    };
-  });
+  // Apply layoutMode translation as a whole-group offset (dx, dy),
+  // strictly preserving the relative spacing and geometry between all items
+  const minX = Math.min(...items.map((it) => it.x));
+  const maxX = Math.max(...items.map((it) => it.x));
+  const minY = Math.min(...items.map((it) => it.y));
+  const maxY = Math.max(...items.map((it) => it.y));
+
+  const margin = 40;
+  const safeDx = Math.max(margin - minX, Math.min(spec.width - margin - maxX, dx));
+  const safeDy = Math.max(margin - minY, Math.min(spec.height - margin - maxY, dy));
+
+  return items.map((it) => ({
+    ...it,
+    x: Math.round(it.x + safeDx),
+    y: Math.round(it.y + safeDy),
+  }));
 }

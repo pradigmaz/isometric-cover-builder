@@ -129,6 +129,14 @@ export const COMPONENT_KEYWORD_MAP: Record<string, AssetId> = {
   files: 'folder',
 
   // Wallet
+  кошелк: 'wallet',
+  кошелка: 'wallet',
+  кошелки: 'wallet',
+  кошелком: 'wallet',
+  кошелку: 'wallet',
+  кошелке: 'wallet',
+  кошелках: 'wallet',
+  кошелками: 'wallet',
   кошелек: 'wallet',
   кошелёк: 'wallet',
   кошелька: 'wallet',

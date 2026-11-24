@@ -44,12 +44,12 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({ isModalOpen = 
   const formatSpec = useMemo(() => getFormatSpec(format), [format]);
   const paletteConfig = useMemo(() => getPaletteConfig(paletteId), [paletteId]);
   const visibleItems = useMemo(
-    () => (includeBackgrounds ? items : items.filter((it) => it.uid?.startsWith('canonical-') || it.role !== 'ghost')),
+    () => (includeBackgrounds ? items : items.filter((it) => it.role !== 'ghost')),
     [items, includeBackgrounds]
   );
   const sortedItems = useMemo(() => sortCanvasItems(visibleItems), [visibleItems]);
   const selectedItems = useMemo(
-    () => items.filter((it) => selectedUids.includes(it.uid) && (includeBackgrounds || it.uid?.startsWith('canonical-') || it.role !== 'ghost')),
+    () => items.filter((it) => selectedUids.includes(it.uid) && (includeBackgrounds || it.role !== 'ghost')),
     [items, selectedUids, includeBackgrounds]
   );
   const selectedItem = selectedItems[0];
