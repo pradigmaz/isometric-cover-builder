@@ -15,16 +15,23 @@ import { DEFAULT_FORMAT, getFormatSpec } from '../config/formats';
 import { DEFAULT_PALETTE, registerCustomPalette } from '../config/palettes';
 import { composeCover } from '../engine/composer';
 import { snapToIsoGrid } from '../engine/isometric';
+import {
+  CANONICAL_COMPOSITIONS,
+  CanonicalCompositionId,
+  getCanonicalComposition,
+} from '../engine/canonicalCompositions';
+import { reorderCanvasLayers } from './layerReorder';
+import {
+  SceneSnapshot,
+  createSnapshot,
+  applySnapshot,
+  INITIAL_ITEMS,
+  rearrangeItemsForLayout,
+} from './layoutReorder';
 
-export interface SceneSnapshot {
-  format: CanvasFormatId;
-  paletteId: PaletteId;
-  customPalette?: PaletteConfig | null;
-  layoutMode: LayoutMode;
-  includeBackgrounds: boolean;
-  items: CanvasItem[];
-  lastPrompt: string;
-}
+export { reorderCanvasLayers } from './layerReorder';
+export { rearrangeItemsForLayout } from './layoutReorder';
+export type { SceneSnapshot };
 
 export interface CanvasStoreState {
   format: CanvasFormatId;
@@ -35,6 +42,7 @@ export interface CanvasStoreState {
   items: CanvasItem[];
   lastPrompt: string;
   selectedUid: string | null;
+  selectedUids: string[];
   viewport: ViewportState;
   snapToGrid: boolean;
   showGrid: boolean;
@@ -51,15 +59,14 @@ export interface CanvasStoreState {
   setLayoutMode: (mode: LayoutMode) => void;
   setIncludeBackgrounds: (include: boolean) => void;
   setSelectedUid: (uid: string | null) => void;
-  selectItem: (uid: string | null) => void;
+  selectItem: (uid: string | null, multi?: boolean) => void;
+  selectGroup: (uids: string[]) => void;
+  toggleSelectItem: (uid: string) => void;
+  selectAll: () => void;
+  clearSelection: () => void;
+  removeSelectedItems: () => void;
 
-  addItem: (
-    assetIdOrItem: AssetId | Partial<CanvasItem>,
-    size?: AssetSize,
-    role?: ItemRole,
-    x?: number,
-    y?: number
-  ) => string;
+  addItem: (assetIdOrItem: AssetId | Partial<CanvasItem>, size?: AssetSize, role?: ItemRole, x?: number, y?: number) => string;
   updateItem: (uid: string, patch: Partial<CanvasItem>, recordHistory?: boolean) => void;
   removeItem: (uid: string) => void;
   duplicateItem: (uid: string) => string | null;
@@ -86,33 +93,6 @@ export interface CanvasStoreState {
 
 const MAX_HISTORY = 30;
 
-function createSnapshot(state: {
-  format: CanvasFormatId;
-  paletteId: PaletteId;
-  customPalette?: PaletteConfig | null;
-  layoutMode: LayoutMode;
-  includeBackgrounds: boolean;
-  items: CanvasItem[];
-  lastPrompt: string;
-}): SceneSnapshot {
-  return {
-    format: state.format,
-    paletteId: state.paletteId,
-    customPalette: state.customPalette ? JSON.parse(JSON.stringify(state.customPalette)) : null,
-    layoutMode: state.layoutMode,
-    includeBackgrounds: state.includeBackgrounds,
-    items: JSON.parse(JSON.stringify(state.items)),
-    lastPrompt: state.lastPrompt,
-  };
-}
-
-const INITIAL_ITEMS: CanvasItem[] = [
-  { uid: 'demo-hero', assetId: 'wallet', size: 'L', role: 'foreground', x: 600, y: 315, zHeight: 0, rotation: 0, scale: 0.78, opacity: 1, manualLayerOffset: 0 },
-  { uid: 'demo-coin', assetId: 'coin', size: 'S', role: 'foreground', x: 820, y: 400, zHeight: 0, rotation: 30, scale: 0.85, opacity: 1, manualLayerOffset: 1 },
-  { uid: 'demo-puzzle', assetId: 'puzzle', size: 'S', role: 'foreground', x: 380, y: 220, zHeight: 0, rotation: -30, scale: 0.85, opacity: 1, manualLayerOffset: -1 },
-  { uid: 'demo-folder', assetId: 'folder', size: 'S', role: 'ghost', x: 880, y: 180, zHeight: 0, rotation: 0, scale: 0.9, opacity: 0.22, manualLayerOffset: -5 },
-];
-
 export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   format: DEFAULT_FORMAT,
   paletteId: DEFAULT_PALETTE,
@@ -122,9 +102,10 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   items: INITIAL_ITEMS,
   lastPrompt: '',
   selectedUid: 'demo-hero',
+  selectedUids: ['demo-hero'],
   viewport: { panX: 0, panY: 0, zoom: 1 },
   snapToGrid: true,
-  showGrid: true,
+  showGrid: false,
   gridStep: 48,
   isGenerating: false,
   past: [],
@@ -132,7 +113,41 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   canUndo: () => get().past.length > 0,
   canRedo: () => get().future.length > 0,
 
-  setFormat: (format) => set((s) => ({ format, past: [...s.past.slice(-MAX_HISTORY + 1), createSnapshot(get())], future: [] })),
+  setFormat: (format) => {
+    const state = get();
+    if (state.format === format) return;
+    const snap = createSnapshot(state);
+
+    const canonicalItem = state.items.find((i) => i.uid.startsWith('canonical-'));
+    if (canonicalItem) {
+      const canonicalId = (Object.keys(CANONICAL_COMPOSITIONS) as CanonicalCompositionId[]).find(
+        (id) => canonicalItem.uid.startsWith(`canonical-${id}-`)
+      );
+      if (canonicalId) {
+        const newItems = getCanonicalComposition(canonicalId, format);
+        set({
+          format,
+          items: newItems,
+          past: [...state.past.slice(-MAX_HISTORY + 1), snap],
+          future: [],
+        });
+        return;
+      }
+    }
+
+    const oldSpec = getFormatSpec(state.format);
+    const newSpec = getFormatSpec(format);
+    const scaleRatio = newSpec.defaultHeroScale / oldSpec.defaultHeroScale;
+
+    const transformedItems = state.items.map((it) => ({
+      ...it,
+      x: Math.round(Math.max(40, Math.min(newSpec.width - 40, (it.x / oldSpec.width) * newSpec.width))),
+      y: Math.round(Math.max(40, Math.min(newSpec.height - 40, (it.y / oldSpec.height) * newSpec.height))),
+      scale: Number(Math.max(0.2, it.scale * scaleRatio).toFixed(2)),
+    }));
+
+    set({ format, items: transformedItems, past: [...state.past.slice(-MAX_HISTORY + 1), snap], future: [] });
+  },
   setPalette: (paletteId) => set((s) => ({ paletteId, past: [...s.past.slice(-MAX_HISTORY + 1), createSnapshot(get())], future: [] })),
   setCustomPalette: (customPalette) => {
     registerCustomPalette(customPalette);
@@ -143,11 +158,64 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
       future: [],
     }));
   },
-  setLayoutMode: (layoutMode) => set((s) => ({ layoutMode, past: [...s.past.slice(-MAX_HISTORY + 1), createSnapshot(get())], future: [] })),
-  setIncludeBackgrounds: (includeBackgrounds) => set((s) => ({ includeBackgrounds, past: [...s.past.slice(-MAX_HISTORY + 1), createSnapshot(get())], future: [] })),
+  setLayoutMode: (layoutMode) => {
+    const state = get();
+    const newItems = rearrangeItemsForLayout(state.items, layoutMode, state.format);
+    const snap = createSnapshot(state);
+    set({
+      layoutMode,
+      items: newItems,
+      past: [...state.past.slice(-MAX_HISTORY + 1), snap],
+      future: [],
+    });
+  },
+  setIncludeBackgrounds: (includeBackgrounds) => {
+    const state = get();
+    const snap = createSnapshot(state);
+    const activeUids = state.selectedUids.length > 0
+      ? state.selectedUids
+      : (state.selectedUid ? [state.selectedUid] : []);
+    const nextSelectedUids = includeBackgrounds
+      ? activeUids
+      : activeUids.filter((uid) => {
+          const item = state.items.find((it) => it.uid === uid);
+          return item?.role !== 'ghost' || item?.uid.startsWith('canonical-');
+        });
+    const shouldDeselectPrimary = !includeBackgrounds && state.items.find((it) => it.uid === state.selectedUid)?.role === 'ghost';
+    const finalSelectedUid = shouldDeselectPrimary ? null : (nextSelectedUids[0] ?? null);
+    set({
+      includeBackgrounds,
+      selectedUids: nextSelectedUids,
+      selectedUid: finalSelectedUid,
+      past: [...state.past.slice(-MAX_HISTORY + 1), snap],
+      future: [],
+    });
+  },
 
-  setSelectedUid: (uid) => set({ selectedUid: uid }),
-  selectItem: (uid) => set({ selectedUid: uid }),
+  setSelectedUid: (uid) => set({ selectedUid: uid, selectedUids: uid ? [uid] : [] }),
+  selectItem: (uid, multi = false) => {
+    if (!uid) { set({ selectedUid: null, selectedUids: [] }); return; }
+    const state = get();
+    if (multi) {
+      const exists = state.selectedUids.includes(uid);
+      const nextUids = exists ? state.selectedUids.filter((id) => id !== uid) : [...state.selectedUids, uid];
+      set({ selectedUids: nextUids, selectedUid: nextUids[0] ?? null });
+    } else {
+      set({ selectedUid: uid, selectedUids: [uid] });
+    }
+  },
+  selectGroup: (uids) => set({ selectedUids: uids, selectedUid: uids[0] ?? null }),
+  toggleSelectItem: (uid) => {
+    const state = get(), exists = state.selectedUids.includes(uid);
+    const nextUids = exists ? state.selectedUids.filter((id) => id !== uid) : [...state.selectedUids, uid];
+    set({ selectedUids: nextUids, selectedUid: nextUids[0] ?? null });
+  },
+  selectAll: () => {
+    const state = get();
+    const visibleUids = state.items.filter((it) => state.includeBackgrounds || it.uid.startsWith('canonical-') || it.role !== 'ghost').map((it) => it.uid);
+    set({ selectedUids: visibleUids, selectedUid: visibleUids[0] ?? null });
+  },
+  clearSelection: () => set({ selectedUid: null, selectedUids: [] }),
 
   addItem: (assetIdOrItem, size = 'L', role = 'foreground', customX, customY) => {
     const state = get();
@@ -179,7 +247,7 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
       };
     }
 
-    set({ items: [...state.items, newItem], selectedUid: newItem.uid, past: [...state.past.slice(-MAX_HISTORY + 1), snap], future: [] });
+    set({ items: [...state.items, newItem], selectedUid: newItem.uid, selectedUids: [newItem.uid], past: [...state.past.slice(-MAX_HISTORY + 1), snap], future: [] });
     return newItem.uid;
   },
 
@@ -200,9 +268,29 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   removeItem: (uid) => {
     const state = get();
     const snap = createSnapshot(state);
+    const toRemoveUids = state.selectedUids.includes(uid) && state.selectedUids.length > 1
+      ? state.selectedUids
+      : [uid];
+    const newItems = state.items.filter((it) => !toRemoveUids.includes(it.uid));
+    const newSelectedUids = state.selectedUids.filter((id) => !toRemoveUids.includes(id));
     set({
-      items: state.items.filter((it) => it.uid !== uid),
-      selectedUid: state.selectedUid === uid ? null : state.selectedUid,
+      items: newItems,
+      selectedUids: newSelectedUids,
+      selectedUid: newSelectedUids[0] ?? null,
+      past: [...state.past.slice(-MAX_HISTORY + 1), snap],
+      future: [],
+    });
+  },
+
+  removeSelectedItems: () => {
+    const state = get();
+    if (state.selectedUids.length === 0) return;
+    const snap = createSnapshot(state);
+    const newItems = state.items.filter((it) => !state.selectedUids.includes(it.uid));
+    set({
+      items: newItems,
+      selectedUids: [],
+      selectedUid: null,
       past: [...state.past.slice(-MAX_HISTORY + 1), snap],
       future: [],
     });
@@ -215,33 +303,35 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     const snap = createSnapshot(state);
     const newUid = `item-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const cloned: CanvasItem = { ...target, uid: newUid, x: target.x + state.gridStep, y: target.y + Math.round(state.gridStep * 0.5), manualLayerOffset: (target.manualLayerOffset ?? 0) + 1 };
-    set({ items: [...state.items, cloned], selectedUid: newUid, past: [...state.past.slice(-MAX_HISTORY + 1), snap], future: [] });
+    set({ items: [...state.items, cloned], selectedUid: newUid, selectedUids: [newUid], past: [...state.past.slice(-MAX_HISTORY + 1), snap], future: [] });
     return newUid;
   },
 
   setItems: (items) => {
     const snap = createSnapshot(get());
-    set((s) => ({ items, selectedUid: null, past: [...s.past.slice(-MAX_HISTORY + 1), snap], future: [] }));
+    set((s) => ({ items, selectedUid: null, selectedUids: [], past: [...s.past.slice(-MAX_HISTORY + 1), snap], future: [] }));
   },
 
   clearCanvas: () => {
     const snap = createSnapshot(get());
-    set((s) => ({ items: [], selectedUid: null, past: [...s.past.slice(-MAX_HISTORY + 1), snap], future: [] }));
+    set((s) => ({ items: [], selectedUid: null, selectedUids: [], past: [...s.past.slice(-MAX_HISTORY + 1), snap], future: [] }));
   },
 
   bringForward: (uid) => {
-    get().updateItem(uid, { manualLayerOffset: (get().items.find((i) => i.uid === uid)?.manualLayerOffset ?? 0) + 1 }, true);
+    const s = get(), items = reorderCanvasLayers(s.items, uid, 'forward');
+    if (items !== s.items) set({ items, past: [...s.past.slice(-MAX_HISTORY + 1), createSnapshot(s)], future: [] });
   },
   sendBackward: (uid) => {
-    get().updateItem(uid, { manualLayerOffset: (get().items.find((i) => i.uid === uid)?.manualLayerOffset ?? 0) - 1 }, true);
+    const s = get(), items = reorderCanvasLayers(s.items, uid, 'backward');
+    if (items !== s.items) set({ items, past: [...s.past.slice(-MAX_HISTORY + 1), createSnapshot(s)], future: [] });
   },
   bringToFront: (uid) => {
-    const maxOffset = Math.max(0, ...get().items.map((i) => i.manualLayerOffset ?? 0));
-    get().updateItem(uid, { manualLayerOffset: maxOffset + 1 }, true);
+    const s = get(), items = reorderCanvasLayers(s.items, uid, 'front');
+    if (items !== s.items) set({ items, past: [...s.past.slice(-MAX_HISTORY + 1), createSnapshot(s)], future: [] });
   },
   sendToBack: (uid) => {
-    const minOffset = Math.min(0, ...get().items.map((i) => i.manualLayerOffset ?? 0));
-    get().updateItem(uid, { manualLayerOffset: minOffset - 1 }, true);
+    const s = get(), items = reorderCanvasLayers(s.items, uid, 'back');
+    if (items !== s.items) set({ items, past: [...s.past.slice(-MAX_HISTORY + 1), createSnapshot(s)], future: [] });
   },
 
   setViewport: (updater) => {
@@ -263,8 +353,11 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     set({ isGenerating: true });
     try {
       const snap = createSnapshot(state);
-      const layoutMode = typeof request === 'object' && request?.layoutMode ? request.layoutMode : 'auto';
-      const paletteId = typeof request === 'object' && request?.paletteId ? request.paletteId : 'auto';
+      const requestedLayout = typeof request === 'object' && request?.layoutMode ? request.layoutMode : state.layoutMode;
+      const targetLayout: LayoutMode | 'auto' = requestedLayout && requestedLayout !== 'auto' ? requestedLayout : 'auto';
+
+      const requestedPalette = typeof request === 'object' && request?.paletteId ? request.paletteId : 'auto';
+      const paletteId = requestedPalette;
       const includeBackgrounds = typeof request === 'object' && request?.includeBackgrounds !== undefined
         ? request.includeBackgrounds
         : state.includeBackgrounds;
@@ -272,18 +365,31 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
       const res = await composeCover({
         prompt,
         format: state.format,
-        layoutMode,
+        layoutMode: targetLayout,
         paletteId,
         includeBackgrounds,
         seed: typeof request === 'object' ? request?.seed : undefined,
       });
 
+      const effectiveLayout: LayoutMode =
+        targetLayout !== 'auto'
+          ? targetLayout
+          : res.resolvedLayout || 'centered';
+
+      const effectivePalette: PaletteId =
+        requestedPalette !== 'auto' && requestedPalette
+          ? requestedPalette
+          : res.recommendedPalette;
+
+      const arrangedItems = rearrangeItemsForLayout(res.items, effectiveLayout, state.format);
+
       set((curr) => ({
-        items: res.items,
-        paletteId: res.recommendedPalette,
-        layoutMode: res.resolvedLayout,
+        items: arrangedItems,
+        paletteId: effectivePalette,
+        layoutMode: effectiveLayout,
         lastPrompt: prompt,
         selectedUid: null,
+        selectedUids: [],
         isGenerating: false,
         past: [...curr.past.slice(-MAX_HISTORY + 1), snap],
         future: [],
@@ -298,42 +404,14 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     const { past, future } = get();
     if (past.length === 0) return;
     const currentSnap = createSnapshot(get());
-    const previous = past[past.length - 1];
-    const newPast = past.slice(0, -1);
-    registerCustomPalette(previous.customPalette ?? null);
-    set({
-      format: previous.format,
-      paletteId: previous.paletteId,
-      customPalette: previous.customPalette ?? null,
-      layoutMode: previous.layoutMode,
-      includeBackgrounds: previous.includeBackgrounds,
-      items: previous.items,
-      lastPrompt: previous.lastPrompt,
-      selectedUid: null,
-      past: newPast,
-      future: [currentSnap, ...future.slice(0, MAX_HISTORY - 1)],
-    });
+    set({ ...applySnapshot(past[past.length - 1]), past: past.slice(0, -1), future: [currentSnap, ...future.slice(0, MAX_HISTORY - 1)] });
   },
 
   redo: () => {
     const { past, future } = get();
     if (future.length === 0) return;
     const currentSnap = createSnapshot(get());
-    const next = future[0];
-    const newFuture = future.slice(1);
-    registerCustomPalette(next.customPalette ?? null);
-    set({
-      format: next.format,
-      paletteId: next.paletteId,
-      customPalette: next.customPalette ?? null,
-      layoutMode: next.layoutMode,
-      includeBackgrounds: next.includeBackgrounds,
-      items: next.items,
-      lastPrompt: next.lastPrompt,
-      selectedUid: null,
-      past: [...past.slice(-MAX_HISTORY + 1), currentSnap],
-      future: newFuture,
-    });
+    set({ ...applySnapshot(future[0]), past: [...past.slice(-MAX_HISTORY + 1), currentSnap], future: future.slice(1) });
   },
 }));
 

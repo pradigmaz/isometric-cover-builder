@@ -191,21 +191,28 @@ export function generateIsoGridLines(
   const xStep = gridStep * 2 * COS_30;
   const span = Math.max(width, height) + dxSpan * 1.5;
 
-  // Lines oriented at +30° and -30° relative to horizontal
-  for (let x = origin.x - span; x <= origin.x + width + span; x += xStep) {
-    // Axis 1: slope +tan(30°) -> from (x, 0) to (x + dxSpan, height)
+  const kStart = -Math.ceil((span + Math.abs(origin.x) + Math.abs(origin.y) / TAN_30) / xStep);
+  const kEnd = Math.ceil((width + span + Math.abs(origin.x) + Math.abs(origin.y) / TAN_30) / xStep);
+
+  // Lines oriented at +30° and -30° passing exactly through (origin.x + k*xStep, origin.y)
+  for (let k = kStart; k <= kEnd; k++) {
+    const xBase = origin.x + k * xStep;
+
+    // Axis 1: slope +tan(30°), intersects y=origin.y at xBase -> at y=0: x1 = xBase - origin.y / TAN_30
+    const x1_pos = xBase - origin.y / TAN_30;
     lines.push({
-      x1: x,
+      x1: x1_pos,
       y1: 0,
-      x2: x + dxSpan,
+      x2: x1_pos + dxSpan,
       y2: height,
     });
 
-    // Axis 2: slope -tan(30°) -> from (x, 0) to (x - dxSpan, height)
+    // Axis 2: slope -tan(30°), intersects y=origin.y at xBase -> at y=0: x1 = xBase + origin.y / TAN_30
+    const x1_neg = xBase + origin.y / TAN_30;
     lines.push({
-      x1: x,
+      x1: x1_neg,
       y1: 0,
-      x2: x - dxSpan,
+      x2: x1_neg - dxSpan,
       y2: height,
     });
   }

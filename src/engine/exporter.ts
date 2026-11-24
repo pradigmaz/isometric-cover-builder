@@ -23,9 +23,13 @@ export function inlineCssTokens(svgString: string, tokens: PaletteTokens): strin
   };
 
   for (const [key, hex] of Object.entries(tokenMap)) {
-    const varPattern = new RegExp(`var\\(--token-${key}\\)`, 'g');
+    const varPattern = new RegExp(`var\\(--token-${key}(?:,\\s*[^)]+)?\\)`, 'g');
     result = result.replace(varPattern, hex);
   }
+
+  // Replace any remaining token variables with their fallback value if present
+  result = result.replace(/var\(--token-[a-zA-Z0-9_-]+,\s*([^)]+)\)/g, '$1');
+
   return result;
 }
 
@@ -63,7 +67,7 @@ export function buildCleanSvgString(
   clone.setAttribute('viewBox', `0 0 ${width} ${height}`);
 
   // 4. Resolve palette tokens
-  const paletteId = options.paletteId ?? (clone.getAttribute('data-palette-id') as PaletteId) ?? 'warm-pastel';
+  const paletteId = options.paletteId ?? (clone.getAttribute('data-palette-id') as PaletteId) ?? 'lavender';
   const palette = getPaletteConfig(paletteId);
   const inline = options.inlineTokens ?? true;
 

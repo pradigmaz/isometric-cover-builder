@@ -76,6 +76,12 @@ export interface PaletteConfig {
   semanticDomains: string[];
 }
 
+export interface VisualBounds {
+  width: number;
+  height: number;
+  offsetY?: number;
+}
+
 export interface ComponentMetadata {
   id: AssetId;
   nameRu: string;
@@ -86,6 +92,8 @@ export interface ComponentMetadata {
   anchor: Record<AssetSize, { x: number; y: number }>;
   /** Радиус коллизии в px при scale = 1.0 (используется анти-коллизией автогенератора) */
   collisionRadiusPx: Record<AssetSize, number>;
+  /** Реальные визуальные габариты графики внутри 600x600 viewBox */
+  visualBounds?: VisualBounds;
   keywords: string[];
   heroSuitability: number; // 0..1
 }

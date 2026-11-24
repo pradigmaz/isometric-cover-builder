@@ -21,7 +21,19 @@ const CATEGORIES: CategoryOption[] = [
   { id: 'creativity', label: 'Творчество' },
 ];
 
-export const AssetCatalog: React.FC = () => {
+const CATEGORY_NAMES_RU: Record<string, string> = {
+  finance: 'Финансы',
+  tech: 'Технологии',
+  work: 'Работа',
+  lifestyle: 'Лайфстайл',
+  creativity: 'Творчество',
+};
+
+export interface AssetCatalogProps {
+  className?: string;
+}
+
+export const AssetCatalog: React.FC<AssetCatalogProps> = ({ className }) => {
   const [activeSize, setActiveSize] = useState<AssetSize>('L');
   const [selectedCategory, setSelectedCategory] = useState<FilterCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,53 +77,57 @@ export const AssetCatalog: React.FC = () => {
 
   return (
     <aside
-      className="w-72 md:w-80 h-full flex flex-col border-r border-stone-200 bg-stone-50/90 backdrop-blur-sm select-none z-10"
+      className={
+        className
+          ? `${className} flex flex-col bg-stone-50/90 dark:bg-zinc-900 select-none z-10`
+          : 'w-72 md:w-80 h-full flex flex-col border-r border-stone-200 dark:border-zinc-800 bg-stone-50/90 dark:bg-zinc-900 backdrop-blur-sm select-none z-10'
+      }
       aria-label="Каталог векторных ассетов"
     >
       {/* Заголовок панели */}
-      <div className="p-3.5 border-b border-stone-200 flex items-center justify-between">
+      <div className="p-3.5 border-b border-stone-200 dark:border-zinc-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Layers className="w-4 h-4 text-stone-700" />
-          <h2 className="text-sm font-semibold text-stone-800 tracking-tight">Каталог ассетов</h2>
+          <Layers className="w-4 h-4 text-stone-700 dark:text-zinc-300" />
+          <h2 className="text-sm font-semibold text-stone-800 dark:text-zinc-100 tracking-tight">Каталог ассетов</h2>
         </div>
-        <span className="text-[11px] px-2 py-0.5 rounded-full bg-stone-200 text-stone-600 font-medium">
+        <span className="text-[11px] px-2 py-0.5 rounded-full bg-stone-200 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 font-medium">
           10 ассетов
         </span>
       </div>
 
       {/* Переключатель размеров L / S */}
-      <div className="p-3 border-b border-stone-200 bg-white/70">
-        <div className="flex rounded-lg bg-stone-200/80 p-0.5 text-xs font-medium">
+      <div className="p-3 border-b border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/70">
+        <div className="flex rounded-lg bg-stone-200/80 dark:bg-zinc-800 p-0.5 text-xs font-medium">
           <button
             type="button"
             onClick={() => setActiveSize('L')}
-            aria-label="Выбрать размер L (Hero, 600×600 px)"
-            className={`flex-1 py-1.5 px-2 rounded-md flex items-center justify-center gap-1.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-600 ${
+            aria-label="Выбрать размер L (Главный, 600×600 px)"
+            className={`h-9 flex-1 px-1.5 rounded-md flex items-center justify-center gap-1.5 whitespace-nowrap text-xs font-medium transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-600 ${
               activeSize === 'L'
-                ? 'bg-white text-stone-900 shadow-xs font-semibold'
-                : 'text-stone-700 hover:text-stone-900'
+                ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 shadow-xs font-semibold'
+                : 'text-stone-700 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100'
             }`}
             title="Крупный доминирующий объект (600×600 px)"
           >
-            <Box className="w-3.5 h-3.5" />
-            <span>Размер L (Hero)</span>
+            <Box className="w-3.5 h-3.5 shrink-0" />
+            <span className="whitespace-nowrap">Размер L (Главный)</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveSize('S')}
             aria-label="Выбрать размер S (Деталь, 200×200 px)"
-            className={`flex-1 py-1.5 px-2 rounded-md flex items-center justify-center gap-1.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-600 ${
+            className={`h-9 flex-1 px-1.5 rounded-md flex items-center justify-center gap-1.5 whitespace-nowrap text-xs font-medium transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-600 ${
               activeSize === 'S'
-                ? 'bg-white text-stone-900 shadow-xs font-semibold'
-                : 'text-stone-700 hover:text-stone-900'
+                ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 shadow-xs font-semibold'
+                : 'text-stone-700 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100'
             }`}
             title="Компактный сателлит (200×200 px)"
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Размер S (Деталь)</span>
+            <Sparkles className="w-3.5 h-3.5 shrink-0" />
+            <span className="whitespace-nowrap">Размер S (Деталь)</span>
           </button>
         </div>
-        <p className="mt-1.5 text-[11px] text-stone-600 text-center">
+        <p className="mt-1.5 text-[11px] text-stone-600 dark:text-zinc-400 text-center">
           {activeSize === 'L'
             ? '600×600 px • Центральная фигура композиции'
             : '200×200 px • Вспомогательные акценты и шлейфы'}
@@ -121,20 +137,20 @@ export const AssetCatalog: React.FC = () => {
       {/* Поиск */}
       <div className="p-3 pb-2">
         <div className="relative">
-          <Search className="w-3.5 h-3.5 text-stone-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search className="w-3.5 h-3.5 text-[var(--fg-2)] dark:text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Поиск по названию или тегу..."
             aria-label="Поиск по названию или тегу"
-            className="w-full text-xs pl-8 pr-3 py-1.5 rounded-md border border-stone-300 bg-white text-stone-900 placeholder-stone-500 focus:outline-none focus:ring-1 focus:ring-stone-600 focus:border-stone-600 transition-colors"
+            className="w-full text-xs pl-8 pr-3 py-1.5 rounded-md border border-[var(--border)] dark:border-zinc-700 bg-[var(--bg)] dark:bg-zinc-800 text-[var(--fg)] dark:text-zinc-100 placeholder-[var(--fg-2)] dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-[var(--accent)] transition-colors"
           />
         </div>
       </div>
 
       {/* Фильтр по категориям */}
-      <div className="px-3 pb-2 flex gap-1 overflow-x-auto no-scrollbar">
+      <div className="px-3 pb-2 flex flex-wrap gap-1.5">
         {CATEGORIES.map((cat) => (
           <button
             key={cat.id}
@@ -144,8 +160,8 @@ export const AssetCatalog: React.FC = () => {
             aria-pressed={selectedCategory === cat.id}
             className={`whitespace-nowrap px-2.5 py-1 text-[11px] rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-600 ${
               selectedCategory === cat.id
-                ? 'bg-stone-800 text-white font-medium'
-                : 'bg-stone-200/90 text-stone-700 hover:bg-stone-300 hover:text-stone-900 font-medium'
+                ? 'bg-[var(--accent)] text-[var(--bg)] font-medium shadow-2xs'
+                : 'bg-[var(--surface)] dark:bg-zinc-800 text-[var(--fg-2)] dark:text-zinc-300 hover:bg-[var(--border)] dark:hover:bg-zinc-700 hover:text-[var(--fg)] dark:hover:text-zinc-100 font-medium'
             }`}
           >
             {cat.label}
@@ -180,13 +196,13 @@ export const AssetCatalog: React.FC = () => {
                     }
                   }}
                   aria-label={`Добавить ${metadata.nameRu} (${metadata.nameEn}) на холст`}
-                  className="group relative flex flex-col items-center p-2.5 rounded-lg border border-stone-200 bg-white hover:border-stone-400 hover:shadow-xs transition-all cursor-pointer active:scale-[0.98] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-500"
+                  className="group relative flex flex-col items-center p-2.5 rounded-lg border border-[var(--border)] dark:border-zinc-800 bg-[var(--surface)] dark:bg-zinc-950 hover:border-[var(--fg-2)] dark:hover:border-zinc-600 hover:shadow-xs transition-all cursor-pointer active:scale-[0.98] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-500"
                   title={`Кликните для добавления или перетащите на холст (${metadata.nameRu})`}
                 >
                   {/* Бейджик Hero suitability */}
                   {isHeroSuit && activeSize === 'L' && (
-                    <span className="absolute top-1.5 right-1.5 text-[9px] px-1 rounded bg-amber-100 text-amber-800 font-medium">
-                      Hero
+                    <span className="absolute top-1.5 right-1.5 text-[9px] px-1 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-medium border border-amber-200 dark:border-amber-800/40">
+                      Главный
                     </span>
                   )}
 
@@ -203,11 +219,11 @@ export const AssetCatalog: React.FC = () => {
 
                   {/* Подписи */}
                   <div className="w-full mt-1.5 text-center">
-                    <div className="text-xs font-semibold text-stone-900 truncate">
+                    <div className="text-xs font-semibold text-stone-900 dark:text-zinc-100 truncate">
                       {metadata.nameRu}
                     </div>
-                    <div className="text-[10px] text-stone-600 font-medium truncate">
-                      {metadata.nameEn}
+                    <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-medium truncate">
+                      {CATEGORY_NAMES_RU[metadata.category] ?? metadata.category}
                     </div>
                   </div>
 
@@ -219,7 +235,7 @@ export const AssetCatalog: React.FC = () => {
                       handleAddClick(metadata.id);
                     }}
                     aria-label={`Добавить ${metadata.nameRu} на холст`}
-                    className="mt-2 w-full py-1 text-[11px] rounded bg-stone-100 group-hover:bg-stone-900 group-hover:text-white text-stone-800 font-medium flex items-center justify-center gap-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-600"
+                    className="mt-2 w-full py-1 text-[11px] rounded bg-stone-100 dark:bg-zinc-800 group-hover:bg-stone-900 dark:group-hover:bg-zinc-100 group-hover:text-white dark:group-hover:text-zinc-900 text-stone-800 dark:text-zinc-200 font-medium flex items-center justify-center gap-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-600"
                   >
                     <Plus className="w-3 h-3" />
                     <span>Добавить</span>
@@ -232,9 +248,9 @@ export const AssetCatalog: React.FC = () => {
       </div>
 
       {/* Футер каталога */}
-      <div className="p-2.5 border-t border-stone-200 bg-white/50 text-[11px] text-stone-600 flex items-center justify-between">
+      <div className="p-2.5 border-t border-stone-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 text-[11px] text-stone-600 dark:text-zinc-400 flex items-center justify-between">
         <span>Перетащите объект на холст</span>
-        <span className="text-stone-500 font-mono text-[10px]">30° изометрия</span>
+        <span className="text-stone-500 dark:text-zinc-500 font-mono text-[10px]">30° изометрия</span>
       </div>
     </aside>
   );

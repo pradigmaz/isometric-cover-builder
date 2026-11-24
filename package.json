@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && node node_modules/vite/bin/vite.js build && npm run build:plugin",
+    "build:web": "tsc && node node_modules/vite/bin/vite.js build",
+    "build:plugin": "node scripts/build-plugin.mjs",
     "preview": "vite preview",
-    "test": "node --experimental-strip-types --test tests/canvas_ui.test.ts"
+    "test": "npx tsx --test tests/canvas_ui.test.ts tests/figma_manifest.test.ts tests/figma_types.test.ts tests/figma_code.test.ts tests/figma_layer_hierarchy.test.ts tests/figma_svg_helper.test.ts tests/figma_ui_component.test.ts tests/figma_build_e2e.test.ts tests/figma_integration_modal.test.ts tests/canonical_compositions.test.ts tests/canonical_palettes.test.ts tests/asset_puzzle_screen.test.ts tests/plugin_canonical_ui.test.ts tests/studio_canonical_integration.test.ts tests/layer_reorder.test.ts tests/layout_rearrangement.test.ts tests/user_templates_and_smart_generator.test.ts tests/canvas_multiselect_and_templates.test.ts tests/light_theme_restoration.test.ts tests/plugin_scenarios_and_desync.test.ts tests/theme_double_animation_and_dark_polish.test.ts tests/kebab_and_layout_offset.test.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -17,6 +19,8 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.13",
+    "@figma/plugin-typings": "^1.143.0",
     "@tailwindcss/vite": "^4.0.0",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",

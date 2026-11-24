@@ -4,8 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Isometric Cover Builder — Конструктор изометрических обложек</title>
+    <script>
+      try {
+        const p = new URLSearchParams(window.location.search).get('theme');
+        const s = localStorage.getItem('theme');
+        if (p === 'dark' || (!p && s === 'dark')) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch {}
+    </script>
   </head>
-  <body class="bg-[#0f0e17] text-[#fffffe] antialiased min-h-screen">
+  <body class="bg-stone-100 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 antialiased min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

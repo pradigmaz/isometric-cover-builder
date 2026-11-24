@@ -1,46 +1,71 @@
-import React, { useState } from 'react';
-import { Sparkles, Dices, RefreshCw, ChevronDown, Check } from 'lucide-react';
-import { LayoutMode, PaletteId } from '../../types/schema';
-import { PALETTE_PRESETS } from '../../config/palettes';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Sparkles, Dices, RefreshCw, Search, Bookmark, Trash2, Plus, Check, X, Layers, CopyPlus } from 'lucide-react';
 import { useCanvasStore } from '../../store/canvasStore';
+import { loadUserTemplates, saveUserTemplate, deleteUserTemplate, UserTemplate } from '../../engine/templates';
+import { AssetId, CanvasItem } from '../../types/schema';
 
-const PROMPT_PRESETS = [
-  'Микросервисная архитектура и системная интеграция',
-  'Финтех стартап: мобильный банк, кэшбэк и карты',
-  'UX/UI дизайн мобильного приложения нового поколения',
-  'Подкаст о фокусе, продуктивности и привычках',
-  'Уютный лайфстайл, баланс жизни и защита от выгорания',
-  'Креативный копирайтинг и редакторские стандарты',
+const SCENARIO_1_PRESETS = [
+  'Финтех и безопасность',
+  'UX/UI дизайн мобильного банка',
+  'Креативная стратегия и копирайтинг',
+  'Дистанционная учёба и курсы',
+  'Подкаст о продуктивности и фокусе',
+  'Корпоративные финансы и отчётность',
 ];
 
-const LAYOUT_MODES: Array<{ id: LayoutMode; label: string; desc: string }> = [
-  { id: 'headline', label: 'Под заголовок', desc: 'Свободное место под крупную типографику' },
-  { id: 'offset', label: 'Диагональ', desc: 'Динамический шлейф вдоль 30° изометрической оси' },
-  { id: 'centered', label: 'Собрано', desc: 'Плотный сбалансированный центральный кластер' },
+const SCENARIO_2_PRESETS = [
+  'книга, телефон',
+  'папка, кошелёк, монета',
+  'наушники, цветы',
+  'лампа, кошелёк, монета',
+  'книга, пазл, ручка',
+  'телефон, пазл',
 ];
 
-export const AiGeneratorBar: React.FC = () => {
-  const [promptText, setPromptText] = useState('');
-  const [showPaletteMenu, setShowPaletteMenu] = useState(false);
+const LIBRARY_ASSETS: { id: AssetId; label: string; nameRu: string }[] = [
+  { id: 'notepad', label: 'книга', nameRu: 'Книга' },
+  { id: 'folder', label: 'папка', nameRu: 'Папка' },
+  { id: 'lamp', label: 'лампа', nameRu: 'Лампа' },
+  { id: 'flowers_vase', label: 'ваза', nameRu: 'Ваза' },
+  { id: 'smartphone', label: 'телефон', nameRu: 'Телефон' },
+  { id: 'headphones', label: 'наушники', nameRu: 'Наушники' },
+  { id: 'wallet', label: 'кошелёк', nameRu: 'Кошелёк' },
+  { id: 'coin', label: 'монета', nameRu: 'Монета' },
+  { id: 'pen', label: 'ручка', nameRu: 'Ручка' },
+  { id: 'puzzle', label: 'пазлы', nameRu: 'Пазлы' },
+];
 
-  const layoutMode = useCanvasStore((state) => state.layoutMode);
-  const setLayoutMode = useCanvasStore((state) => state.setLayoutMode);
-  const paletteId = useCanvasStore((state) => state.paletteId);
-  const setPalette = useCanvasStore((state) => state.setPalette);
-  const includeBackgrounds = useCanvasStore((state) => state.includeBackgrounds);
-  const setIncludeBackgrounds = useCanvasStore((state) => state.setIncludeBackgrounds);
-  const isGenerating = useCanvasStore((state) => state.isGenerating);
-  const generateCover = useCanvasStore((state) => state.generateCover);
+export interface AiGeneratorBarProps {
+  className?: string;
+}
 
-  const handleGenerate = async (customPrompt?: string) => {
-    const text = (customPrompt ?? promptText).trim();
-    if (!text && !customPrompt) return;
+export const AiGeneratorBar: React.FC<AiGeneratorBarProps> = ({ className = '' }) => {
+  const [activeScenario, setActiveScenario] = useState<1 | 2>(1);
+  const [scenario1Prompt, setScenario1Prompt] = useState('');
+  const [scenario2Prompt, setScenario2Prompt] = useState('');
+  const [templates, setTemplates] = useState<UserTemplate[]>([]);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [templateNameInput, setTemplateNameInput] = useState('');
+
+  const {
+    items, selectedUids = [], format, paletteId, layoutMode,
+    setFormat, setPalette, setLayoutMode, setItems, selectGroup,
+    isGenerating, generateCover,
+  } = useCanvasStore();
+
+  useEffect(() => { setTemplates(loadUserTemplates()); }, []);
+
+  const selectedItems = useMemo(() => items.filter((it) => selectedUids.includes(it.uid)), [items, selectedUids]);
+  const hasSelectedGroup = selectedItems.length > 0;
+
+  const handleGenerate = async (customText?: string) => {
+    const rawText = customText ?? (activeScenario === 1 ? scenario1Prompt : scenario2Prompt);
+    const text = rawText.trim();
+    if (!text && !customText) return;
     try {
       await generateCover({
         prompt: text || 'Изометрическая иллюстрация',
-        layoutMode,
-        paletteId,
-        includeBackgrounds,
+        layoutMode, paletteId, includeBackgrounds: true,
         seed: Math.floor(Math.random() * 100000),
       });
     } catch (err) {
@@ -49,179 +74,304 @@ export const AiGeneratorBar: React.FC = () => {
   };
 
   const handleReroll = async () => {
+    const activeText = (activeScenario === 1 ? scenario1Prompt : scenario2Prompt).trim() || 'Изометрическая композиция';
     try {
-      await generateCover({
-        prompt: promptText.trim() || 'Изометрическая композиция',
-        layoutMode,
-        paletteId,
-        includeBackgrounds,
-        seed: Math.floor(Math.random() * 100000),
-      });
+      await generateCover({ prompt: activeText, layoutMode, paletteId, includeBackgrounds: true, seed: Math.floor(Math.random() * 100000) });
     } catch (err) {
       console.error('Re-roll failed:', err);
     }
   };
 
-  const handlePresetClick = (preset: string) => {
-    setPromptText(preset);
-    handleGenerate(preset);
+  const handleToggleAssetTag = (label: string) => {
+    const parts = scenario2Prompt.split(',').map((s) => s.trim()).filter(Boolean);
+    const exists = parts.some((p) => p.toLowerCase() === label.toLowerCase());
+    setScenario2Prompt(exists ? parts.filter((p) => p.toLowerCase() !== label.toLowerCase()).join(', ') : [...parts, label].join(', '));
   };
 
+  const handleSaveTemplateSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const targetItems = hasSelectedGroup ? selectedItems : items;
+    if (!targetItems.length) return;
+    const defaultName = hasSelectedGroup ? `Группа (${targetItems.length} шт.)` : `Шаблон #${templates.length + 1}`;
+    const name = templateNameInput.trim() || defaultName;
+    saveUserTemplate({ name, format, paletteId, layoutMode, items: targetItems });
+    setTemplates(loadUserTemplates());
+    setTemplateNameInput('');
+    setIsSavingTemplate(false);
+  };
+
+  const handleApplyTemplate = (tmpl: UserTemplate) => {
+    setItems(tmpl.items.map((it) => ({ ...it })));
+    if (tmpl.format) setFormat(tmpl.format);
+    if (tmpl.paletteId) setPalette(tmpl.paletteId);
+    if (tmpl.layoutMode) setLayoutMode(tmpl.layoutMode);
+    selectGroup(tmpl.items.map((it) => it.uid));
+  };
+
+  const handleInsertTemplate = (tmpl: UserTemplate, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const cloned: CanvasItem[] = tmpl.items.map((it) => ({
+      ...it,
+      uid: `item-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      x: it.x + 48,
+      y: it.y + 24,
+    }));
+    setItems([...items, ...cloned]);
+    selectGroup(cloned.map((c) => c.uid));
+  };
+
+  const handleDeleteTemplate = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTemplates(deleteUserTemplate(id));
+  };
+
+  const currentPromptValue = activeScenario === 1 ? scenario1Prompt : scenario2Prompt;
+  const setCurrentPromptValue = activeScenario === 1 ? setScenario1Prompt : setScenario2Prompt;
+
   return (
-    <div className="w-full bg-white border-b border-stone-200 px-4 py-2.5 z-10 shadow-2xs">
-      <div className="max-w-6xl mx-auto flex flex-col gap-2">
-        {/* Main Input Row */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Prompt Field */}
-          <div className="flex-1 min-w-[280px] relative">
-            <input
-              type="text"
-              value={promptText}
-              onChange={(e) => setPromptText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleGenerate();
-              }}
-              placeholder="Опишите тему статьи или метафору (например: Финтех, мобильный банк и кэшбэк)..."
-              disabled={isGenerating}
-              className="w-full text-xs pl-3.5 pr-20 py-2 rounded-lg border border-stone-300 bg-stone-50/60 placeholder-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-stone-800/10 focus:border-stone-800 transition-all"
-            />
-            {promptText && (
-              <button
-                type="button"
-                onClick={() => setPromptText('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-[11px] px-1 py-0.5 rounded"
-              >
-                Очистить
-              </button>
-            )}
+    <div className={`flex flex-col h-full bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 select-none ${className}`}>
+      {/* 1. Header with Title & Random Re-roll Button */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200 dark:border-zinc-800 bg-stone-50/70 dark:bg-zinc-900/80 shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 shadow-2xs">
+            <Sparkles className="w-3.5 h-3.5" />
           </div>
-
-          {/* Layout Mode Selector */}
-          <div className="flex items-center bg-stone-100 p-0.5 rounded-lg border border-stone-200 text-xs font-medium">
-            {LAYOUT_MODES.map((mode) => (
-              <button
-                key={mode.id}
-                type="button"
-                onClick={() => setLayoutMode(mode.id)}
-                className={`px-2.5 py-1.5 rounded-md transition-all ${
-                  layoutMode === mode.id
-                    ? 'bg-white text-stone-900 shadow-xs font-semibold'
-                    : 'text-stone-600 hover:text-stone-900'
-                }`}
-                title={mode.desc}
-              >
-                {mode.label}
-              </button>
-            ))}
+          <div>
+            <h2 className="text-xs font-bold text-stone-900 dark:text-zinc-100 uppercase tracking-wider">Генератор композиций</h2>
+            <p className="text-[10px] text-stone-500 dark:text-zinc-400 font-medium">Сценарии 1 & 2 (Figma Frame 1)</p>
           </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleReroll}
+          disabled={isGenerating}
+          className="p-1.5 rounded-lg border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 hover:bg-stone-100 dark:hover:bg-zinc-700 text-stone-700 dark:text-zinc-300 transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+          title="Перебросить вариант со случайным сидом"
+        >
+          <Dices className="w-3.5 h-3.5 text-stone-600 dark:text-zinc-300" />
+        </button>
+      </div>
 
-          {/* Background Ghosts Toggle */}
-          <label className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 text-xs text-stone-700 cursor-pointer select-none transition-colors">
-            <input
-              type="checkbox"
-              checked={includeBackgrounds}
-              onChange={(e) => setIncludeBackgrounds(e.target.checked)}
-              className="w-3.5 h-3.5 rounded text-stone-900 focus:ring-stone-500 accent-stone-900"
-            />
-            <span className="text-[11px] font-medium">Силуэты</span>
-          </label>
-
-          {/* Palette Dropdown Selector */}
-          <div className="relative">
+      {/* 2. Scrollable Body */}
+      <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5">
+        {/* Scenario Tabs (Figma Frame 1) */}
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar p-0.5 bg-stone-100 dark:bg-zinc-800 rounded-lg border border-stone-200/80 dark:border-zinc-700">
             <button
               type="button"
-              onClick={() => setShowPaletteMenu(!showPaletteMenu)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 text-xs font-medium text-stone-700 transition-colors shadow-2xs"
+              onClick={() => setActiveScenario(1)}
+              className={`flex-1 py-1.5 px-2 rounded-md transition-all text-center text-xs cursor-pointer truncate ${
+                activeScenario === 1 ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 shadow-2xs font-semibold' : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100'
+              }`}
             >
-              <div className="flex -space-x-1 items-center">
-                {PALETTE_PRESETS[paletteId].figmaSwatches.map((swatch, idx) => (
-                  <span
-                    key={idx}
-                    className="w-2 h-2 rounded-full border border-stone-300"
-                    style={{ backgroundColor: swatch }}
-                  />
-                ))}
-              </div>
-              <span className="text-[11px]">{PALETTE_PRESETS[paletteId].name}</span>
-              <ChevronDown className="w-3 h-3 text-stone-400" />
+              Сценарий 1: Метафора
             </button>
-
-            {showPaletteMenu && (
-              <div className="absolute right-0 mt-1 w-44 rounded-lg bg-white border border-stone-200 shadow-lg py-1 z-30 text-xs">
-                {(['warm-pastel', 'fresh-mint', 'soft-coral'] as PaletteId[]).map((pid) => {
-                  const cfg = PALETTE_PRESETS[pid];
-                  const isCur = paletteId === pid;
-                  return (
-                    <button
-                      key={pid}
-                      type="button"
-                      onClick={() => {
-                        setPalette(pid);
-                        setShowPaletteMenu(false);
-                      }}
-                      className="w-full px-3 py-1.5 text-left hover:bg-stone-100 flex items-center justify-between transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="flex -space-x-1 items-center">
-                          {cfg.figmaSwatches.map((sw, idx) => (
-                            <span
-                              key={idx}
-                              className="w-2 h-2 rounded-full border border-stone-300"
-                              style={{ backgroundColor: sw }}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-stone-800">{cfg.name}</span>
-                      </div>
-                      {isCur && <Check className="w-3 h-3 text-stone-800" />}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={() => setActiveScenario(2)}
+              className={`flex-1 py-1.5 px-2 rounded-md transition-all text-center text-xs cursor-pointer truncate ${
+                activeScenario === 2 ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 shadow-2xs font-semibold' : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100'
+              }`}
+            >
+              Сценарий 2: Компоненты
+            </button>
           </div>
+          <p className="text-[11px] text-stone-500 dark:text-zinc-400 leading-snug px-0.5">
+            {activeScenario === 1
+              ? 'Задайте заголовок или метафору — сервис сам подберёт гармоничные объекты.'
+              : 'Вбивайте названия нужных компонентов — сервис скомпонует их на столе.'}
+          </p>
+        </div>
 
-          {/* Action Buttons: Generate & Re-roll */}
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => handleGenerate()}
-              disabled={isGenerating || !promptText.trim()}
-              className="flex items-center gap-1.5 bg-stone-900 hover:bg-stone-800 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isGenerating ? (
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              )}
-              <span>{isGenerating ? 'Генерация...' : 'Сгенерировать'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleReroll}
-              disabled={isGenerating}
-              className="p-1.5 rounded-lg border border-stone-200 bg-white hover:bg-stone-100 text-stone-700 transition-colors shadow-2xs disabled:opacity-50"
-              title="Сгенерировать другой вариант с новым случайным сидом"
-            >
-              <Dices className="w-4 h-4 text-stone-600" />
-            </button>
+        {/* 10 Registered Components Explanation & Interactive Chips */}
+        <div className="p-2.5 rounded-lg bg-stone-50 dark:bg-zinc-900/90 border border-stone-200 dark:border-zinc-800 space-y-1">
+          <div className="flex items-center justify-between text-[11px] font-semibold text-stone-800 dark:text-zinc-200">
+            <span>Компоненты библиотеки (10 векторных ассетов):</span>
+          </div>
+          <p className="text-[10px] text-stone-500 dark:text-zinc-400 leading-tight">
+            Итоговая композиция состоит только из этих 10 объектов. Кликните для добавления:
+          </p>
+          <div className="flex flex-wrap gap-1 pt-0.5">
+            {LIBRARY_ASSETS.map((asset) => {
+              const isSelected = scenario2Prompt.toLowerCase().includes(asset.label);
+              return (
+                <button
+                  key={asset.id}
+                  type="button"
+                  onClick={() => {
+                    if (activeScenario === 1) setActiveScenario(2);
+                    handleToggleAssetTag(asset.label);
+                  }}
+                  className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors cursor-pointer border ${
+                    isSelected
+                      ? 'bg-[var(--accent)] text-[var(--bg)] border-[var(--accent)] font-semibold shadow-2xs'
+                      : 'bg-[var(--surface)] dark:bg-zinc-800 hover:bg-[var(--border)] dark:hover:bg-zinc-700 text-[var(--fg)] dark:text-zinc-200 border-[var(--border)] dark:border-zinc-700/80'
+                  }`}
+                  title={`Добавить ${asset.nameRu} в запрос`}
+                >
+                  {isSelected ? `✓ ${asset.nameRu}` : `+ ${asset.nameRu}`}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Preset Chips Row */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-[11px] pt-0.5">
-          <span className="text-stone-400 font-medium whitespace-nowrap">Примеры:</span>
-          {PROMPT_PRESETS.map((preset, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => handlePresetClick(preset)}
-              className="whitespace-nowrap px-2 py-0.5 rounded-md bg-stone-100 hover:bg-stone-200/80 text-stone-600 transition-colors cursor-pointer"
-            >
-              {preset}
-            </button>
-          ))}
+        {/* Input & Generate Box */}
+        <div className="space-y-2">
+          <div className="flex flex-col rounded-lg border border-[var(--border)] dark:border-zinc-700 bg-[var(--bg)] dark:bg-zinc-900 hover:border-[var(--fg-2)] dark:hover:border-zinc-600 focus-within:border-[var(--accent)] transition-colors overflow-hidden">
+            <div className="flex items-center px-2.5 py-1.5">
+              <Search className="w-3.5 h-3.5 text-[var(--fg-2)] dark:text-zinc-500 mr-2 shrink-0 pointer-events-none" />
+              <input
+                type="text"
+                value={currentPromptValue}
+                onChange={(e) => setCurrentPromptValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleGenerate(); }}
+                placeholder={activeScenario === 1 ? '«Финтех и безопасность», «UX дизайн»...' : '«книга, телефон», «папка, кошелёк»...'}
+                disabled={isGenerating}
+                className="flex-1 min-w-0 text-xs py-1 bg-transparent text-[var(--fg)] dark:text-zinc-100 placeholder-[var(--fg-2)] dark:placeholder-zinc-500 focus:outline-none"
+              />
+              {currentPromptValue && (
+                <button type="button" onClick={() => setCurrentPromptValue('')} className="text-[var(--fg-2)] dark:text-zinc-500 hover:text-[var(--fg)] dark:hover:text-zinc-300 p-0.5 rounded cursor-pointer" title="Очистить">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            <div className="p-1 border-t border-[var(--border)] dark:border-zinc-800 bg-[var(--surface)] dark:bg-zinc-900/50">
+              <button
+                type="button"
+                onClick={() => handleGenerate()}
+                disabled={isGenerating || !currentPromptValue.trim()}
+                className="w-full flex items-center justify-center gap-1.5 bg-[var(--accent)] text-[var(--bg)] hover:opacity-90 px-3 py-1.5 rounded-md text-xs font-semibold transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-2xs"
+              >
+                {isGenerating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300 dark:text-amber-500" />}
+                <span>{isGenerating ? 'Генерация...' : 'Сгенерировать композицию'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Preset Chips */}
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
+            {(activeScenario === 1 ? SCENARIO_1_PRESETS : SCENARIO_2_PRESETS).map((preset, idx) => (
+              <button
+                key={idx}
+                type="button"
+                data-scenario2-chip={activeScenario === 2 ? preset : undefined}
+                onClick={() => { setCurrentPromptValue(preset); handleGenerate(preset); }}
+                className="px-2.5 py-1 rounded-full bg-[var(--surface)] dark:bg-zinc-800 hover:bg-[var(--border)] dark:hover:bg-zinc-700 text-[var(--fg)] dark:text-zinc-200 border border-[var(--border)] dark:border-zinc-700 transition-colors cursor-pointer text-[11px] font-medium"
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Section: «Мои шаблоны» (User Templates) */}
+        <div className="space-y-2.5 pt-3 border-t border-stone-200 dark:border-zinc-800">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Bookmark className="w-3.5 h-3.5 text-stone-700 dark:text-zinc-300" />
+              <span className="text-xs font-bold text-stone-900 dark:text-zinc-100 uppercase tracking-wider">Мои шаблоны</span>
+              <span className="text-[10px] text-stone-400 dark:text-zinc-500 font-mono">({templates.length})</span>
+            </div>
+            {!isSavingTemplate && (
+              <button
+                type="button"
+                onClick={() => setIsSavingTemplate(true)}
+                disabled={!items.length}
+                className="flex items-center gap-1 text-[11px] font-semibold text-stone-800 dark:text-zinc-200 hover:text-stone-950 dark:hover:text-white disabled:opacity-40 cursor-pointer transition-colors"
+                title={hasSelectedGroup ? `Сохранить группу (${selectedItems.length} шт.) как шаблон` : 'Сохранить холст как шаблон'}
+              >
+                <Plus className="w-3 h-3" />
+                <span>{hasSelectedGroup ? `Сохранить группу (${selectedItems.length})` : 'Сохранить'}</span>
+              </button>
+            )}
+          </div>
+
+          <p className="text-[11px] text-stone-500 dark:text-zinc-400 leading-snug px-0.5">
+            Выделите группу объектов на холсте (рамкой или Shift+клик) и сохраните как отдельный шаблон.
+          </p>
+
+          {/* Save Template Prompt Form */}
+          {isSavingTemplate && (
+            <form onSubmit={handleSaveTemplateSubmit} className="p-2.5 rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50/40 dark:bg-amber-950/20 space-y-2">
+              <div className="text-[11px] font-semibold text-stone-800 dark:text-zinc-200">
+                {hasSelectedGroup ? `Сохранить группу (${selectedItems.length} шт.) как шаблон:` : 'Название нового шаблона:'}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  autoFocus
+                  value={templateNameInput}
+                  onChange={(e) => setTemplateNameInput(e.target.value)}
+                  placeholder={hasSelectedGroup ? `Группа (${selectedItems.length} шт.)` : `Шаблон #${templates.length + 1}`}
+                  className="flex-1 min-w-0 text-xs px-2.5 py-1 rounded-md border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-stone-900 dark:focus:ring-zinc-400"
+                />
+                <button type="submit" className="p-1.5 rounded-md bg-stone-900 dark:bg-zinc-100 hover:bg-stone-800 dark:hover:bg-white text-white dark:text-zinc-900 cursor-pointer shadow-2xs" title="Подтвердить сохранение">
+                  <Check className="w-3.5 h-3.5" />
+                </button>
+                <button type="button" onClick={() => { setIsSavingTemplate(false); setTemplateNameInput(''); }} className="p-1.5 rounded-md bg-stone-200 dark:bg-zinc-800 hover:bg-stone-300 dark:hover:bg-zinc-700 text-stone-700 dark:text-zinc-300 cursor-pointer" title="Отмена">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Templates List */}
+          {templates.length === 0 ? (
+            <div className="p-3 rounded-lg border border-dashed border-stone-200 dark:border-zinc-800 text-center space-y-1 bg-stone-50/50 dark:bg-zinc-900/50">
+              <Layers className="w-4 h-4 text-stone-400 dark:text-zinc-500 mx-auto" />
+              <p className="text-[11px] font-medium text-stone-600 dark:text-zinc-400">Нет сохранённых шаблонов</p>
+              <p className="text-[10px] text-stone-400 dark:text-zinc-500 leading-relaxed">Выделите группу объектов или настройте обложку и нажмите «Сохранить».</p>
+            </div>
+          ) : (
+            <div className="space-y-1.5 max-h-56 overflow-y-auto pr-0.5">
+              {templates.map((tmpl) => (
+                <div
+                  key={tmpl.id}
+                  onClick={() => handleApplyTemplate(tmpl)}
+                  className="p-2 rounded-lg border border-stone-200 dark:border-zinc-800 hover:border-stone-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-900/90 hover:bg-stone-50/80 dark:hover:bg-zinc-800 transition-all cursor-pointer group flex items-center justify-between gap-2 shadow-2xs"
+                  title="Кликните для применения шаблона на холст"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-semibold text-stone-900 dark:text-zinc-100 truncate">{tmpl.name}</span>
+                      <span className="text-[10px] font-mono text-stone-400 dark:text-zinc-500 shrink-0">{tmpl.format}</span>
+                    </div>
+                    <div className="text-[10px] text-stone-500 dark:text-zinc-400 truncate mt-0.5">
+                      {tmpl.assetSummary?.join(', ') || `${tmpl.itemCount} объектов`}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => handleInsertTemplate(tmpl, e)}
+                      className="flex items-center gap-0.5 px-2 py-1 rounded bg-stone-100 dark:bg-zinc-800 hover:bg-stone-200 dark:hover:bg-zinc-700 text-stone-700 dark:text-zinc-200 text-[10px] font-medium transition-colors cursor-pointer"
+                      title="Вставить группу объектов на текущий холст"
+                    >
+                      <CopyPlus className="w-3 h-3 text-stone-500 dark:text-zinc-400" />
+                      <span>Вставить</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleApplyTemplate(tmpl); }}
+                      className="px-2 py-1 rounded bg-stone-900 dark:bg-zinc-100 hover:bg-stone-800 dark:hover:bg-white text-white dark:text-zinc-900 text-[10px] font-medium transition-colors cursor-pointer"
+                      title="Заменить холст этим шаблоном"
+                    >
+                      Заменить
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteTemplate(tmpl.id, e)}
+                      className="p-1 rounded text-stone-400 dark:text-zinc-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                      title="Удалить шаблон"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

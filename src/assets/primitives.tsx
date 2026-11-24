@@ -57,7 +57,6 @@ export const AssetContainer: React.FC<AssetContainerProps> = ({
   ...props
 }) => {
   const isL = size === 'L';
-  const isGhost = role === 'ghost';
   const viewBox = isL ? '0 0 600 600' : '0 0 200 200';
   const width = isL ? 600 : 200;
   const height = isL ? 600 : 200;
@@ -70,6 +69,7 @@ export const AssetContainer: React.FC<AssetContainerProps> = ({
       width={props.width ?? width}
       height={props.height ?? height}
       xmlns="http://www.w3.org/2000/svg"
+      preserveAspectRatio={props.preserveAspectRatio ?? 'xMidYMid meet'}
       className={className}
       style={{
         overflow: 'visible',
@@ -80,13 +80,90 @@ export const AssetContainer: React.FC<AssetContainerProps> = ({
     >
       <g
         transform={`translate(${center}, ${center}) scale(${scale})`}
-        opacity={isGhost ? 0.22 : 1}
       >
         {children}
       </g>
     </svg>
   );
 };
+
+/**
+ * Maps raw Figma hex colors to semantic CSS variables with full dark/light theme support.
+ * In ghost mode, preserves 3D isometric facet shading (light top, medium side, dark stroke)
+ * instead of flattening everything into a single uniform color.
+ */
+export function getAssetFill(color: string, isGhost: boolean): string {
+  if (color === 'none' || !color) return 'none';
+
+  if (isGhost) {
+    switch (color) {
+      case '#181817':
+      case 'black':
+      case 'secondary':
+        return 'var(--token-secondary)';
+      case 'white':
+      case 'light':
+      case '#FFFDF9':
+        return 'var(--token-light)';
+      case 'primary':
+      case '#F9ECB0':
+      case 'surface':
+      case '#D7CDF5':
+      case '#FAC896':
+      case '#FDD7B9':
+        return 'var(--token-surface)';
+      case 'accent':
+      case 'coral':
+      case 'lilac':
+      case '#7864D7':
+      case '#AA9BF0':
+      case '#F9A3AA':
+      case '#80DADA':
+      case '#5ABEBE':
+        return 'var(--token-secondary)';
+      default:
+        return 'var(--token-surface)';
+    }
+  }
+
+  // Foreground mode:
+  // Preserves authentic SVG Figma illustration colors
+  switch (color) {
+    case '#181817':
+    case 'black':
+    case 'secondary':
+      return 'var(--token-secondary, #181817)';
+    case 'white':
+    case 'light':
+    case '#FFFDF9':
+      return 'var(--token-light, #FFFFFF)';
+    case 'primary':
+    case '#F9ECB0':
+      return 'var(--token-primary, #F9ECB0)'; // Soft pastel yellow hero
+    case 'coral':
+    case '#F9A3AA':
+    case '#F1899C':
+      return '#F9A3AA'; // Authentic coral/pink puzzle piece
+    case 'surface':
+    case '#D7CDF5':
+      return 'var(--token-surface, #D7CDF5)'; // Authentic soft lilac
+    case 'lilac':
+    case 'accent':
+    case '#8571D9':
+    case '#7864D7':
+    case '#AA9BF0':
+      return color === 'lilac' || color === 'accent' ? '#AA9BF0' : color; // Authentic Figma purple/lilac shades
+    case '#FAC896':
+    case '#FDD7B9':
+      return color; // Authentic gold / warm peach
+    case '#80DADA':
+    case '#BEEBEB':
+    case '#5ABEBE':
+      return color; // Authentic turquoise / mint
+    default:
+      return color;
+  }
+}
 
 export interface IsoBoxProps {
   u: number;

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   /* 4-tier CSS tokens for UI chrome */
@@ -17,6 +18,51 @@
   --token-surface: #1a1829;
   --token-light: #a384ff;
   --token-text: #fffffe;
+}
+
+.dark {
+  /* 4-tier CSS tokens for Dark UI chrome (Zinc palette) */
+  --bg: #09090b;
+  --surface: #18181b;
+  --border: #27272a;
+  --fg: #f4f4f5;
+  --fg-2: #a1a1aa;
+  --accent: #f4f4f5;
+}
+
+:root, body, * {
+  scrollbar-color: #525252 transparent;
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #525252;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #737373;
+}
+
+/* Utility to hide scrollbars while preserving scrolling functionality */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 body {
@@ -92,4 +138,31 @@ body {
   [popover].studio-dropdown:popover-open {
     transform: none !important;
   }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }
+
+/* Disable all transitions during view-transition theme toggle to eliminate double animation */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: none !important;
+}
+
+/* Magic UI Circular Reveal View Transition - strictly disable UA crossfade */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none !important;
+  mix-blend-mode: normal !important;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 9999;
+}
+

@@ -11,6 +11,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "moduleDetection": "force",
+    "types": ["@figma/plugin-typings"],
     "noEmit": true,
     "jsx": "react-jsx",
 

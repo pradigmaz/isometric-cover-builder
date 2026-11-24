@@ -1,5 +1,5 @@
 import type { FC } from 'react';
-import type { AssetId, AssetSize, ComponentMetadata } from '../types/schema';
+import type { AssetId, AssetSize, ComponentMetadata, VisualBounds } from '../types/schema';
 import { ASSET_VIEWBOX_SIZE } from '../types/schema';
 import type { AssetProps } from './primitives';
 
@@ -36,6 +36,7 @@ export const ASSET_REGISTRY: Record<AssetId, AssetRegistryEntry> = {
       dimensions: ASSET_VIEWBOX_SIZE,
       anchor: DEFAULT_ANCHOR,
       collisionRadiusPx: { L: 200, S: 70 },
+      visualBounds: { width: 282, height: 177, offsetY: 0 },
       keywords: [
         'кошел',
         'бюджет',
@@ -67,6 +68,7 @@ export const ASSET_REGISTRY: Record<AssetId, AssetRegistryEntry> = {
       dimensions: ASSET_VIEWBOX_SIZE,
       anchor: DEFAULT_ANCHOR,
       collisionRadiusPx: { L: 210, S: 75 },
+      visualBounds: { width: 289, height: 167, offsetY: 0 },
       keywords: [
         'прилож',
         'мобил',
@@ -98,7 +100,8 @@ export const ASSET_REGISTRY: Record<AssetId, AssetRegistryEntry> = {
       category: 'tech',
       dimensions: ASSET_VIEWBOX_SIZE,
       anchor: DEFAULT_ANCHOR,
-      collisionRadiusPx: { L: 180, S: 65 },
+      collisionRadiusPx: { L: 190, S: 65 },
+      visualBounds: { width: 278, height: 160, offsetY: 0 },
       keywords: [
         'микросервис',
         'систем',
@@ -130,7 +133,8 @@ export const ASSET_REGISTRY: Record<AssetId, AssetRegistryEntry> = {
       category: 'finance',
       dimensions: ASSET_VIEWBOX_SIZE,
       anchor: DEFAULT_ANCHOR,
-      collisionRadiusPx: { L: 160, S: 55 },
+      collisionRadiusPx: { L: 170, S: 60 },
+      visualBounds: { width: 235, height: 152, offsetY: 0 },
       keywords: [
         'финанс',
         'деньг',
@@ -164,7 +168,8 @@ export const ASSET_REGISTRY: Record<AssetId, AssetRegistryEntry> = {
       category: 'lifestyle',
       dimensions: ASSET_VIEWBOX_SIZE,
       anchor: DEFAULT_ANCHOR,
-      collisionRadiusPx: { L: 190, S: 70 },
+      collisionRadiusPx: { L: 200, S: 70 },
+      visualBounds: { width: 294, height: 226, offsetY: -15 },
       keywords: [
         'подкаст',
         'музык',
@@ -196,6 +201,7 @@ export const ASSET_REGISTRY: Record<AssetId, AssetRegistryEntry> = {
       dimensions: ASSET_VIEWBOX_SIZE,
       anchor: DEFAULT_ANCHOR,
       collisionRadiusPx: { L: 200, S: 75 },
+      visualBounds: { width: 265, height: 317, offsetY: -25 },
       keywords: [
         'иде',
         'инсайт',
@@ -228,7 +234,8 @@ export const ASSET_REGISTRY: Record<AssetId, AssetRegistryEntry> = {
       category: 'lifestyle',
       dimensions: ASSET_VIEWBOX_SIZE,
       anchor: DEFAULT_ANCHOR,
-      collisionRadiusPx: { L: 190, S: 70 },
+      collisionRadiusPx: { L: 200, S: 70 },
+      visualBounds: { width: 276, height: 329, offsetY: -15 },
       keywords: [
         'лайфстайл',
         'дом',
@@ -263,6 +270,7 @@ export const ASSET_REGISTRY: Record<AssetId, AssetRegistryEntry> = {
       dimensions: ASSET_VIEWBOX_SIZE,
       anchor: DEFAULT_ANCHOR,
       collisionRadiusPx: { L: 210, S: 75 },
+      visualBounds: { width: 304, height: 207, offsetY: 0 },
       keywords: [
         'план',
         'чеклист',
@@ -295,7 +303,8 @@ export const ASSET_REGISTRY: Record<AssetId, AssetRegistryEntry> = {
       category: 'work',
       dimensions: ASSET_VIEWBOX_SIZE,
       anchor: DEFAULT_ANCHOR,
-      collisionRadiusPx: { L: 200, S: 70 },
+      collisionRadiusPx: { L: 210, S: 75 },
+      visualBounds: { width: 311, height: 165, offsetY: 0 },
       keywords: [
         'документ',
         'отчёт',
@@ -328,7 +337,8 @@ export const ASSET_REGISTRY: Record<AssetId, AssetRegistryEntry> = {
       category: 'creativity',
       dimensions: ASSET_VIEWBOX_SIZE,
       anchor: DEFAULT_ANCHOR,
-      collisionRadiusPx: { L: 150, S: 50 },
+      collisionRadiusPx: { L: 180, S: 60 },
+      visualBounds: { width: 271, height: 152, offsetY: 0 },
       keywords: [
         'текст',
         'стать',
@@ -366,6 +376,20 @@ export function getAssetMetadata(id: AssetId): ComponentMetadata {
   return getAsset(id).metadata;
 }
 
+export function getAssetVisualBounds(
+  id: AssetId,
+  size: AssetSize = 'L'
+): VisualBounds & { offsetY: number } {
+  const meta = ASSET_REGISTRY[id]?.metadata;
+  const base = meta?.visualBounds || { width: 260, height: 200, offsetY: 0 };
+  const factor = size === 'S' ? 1 / 3 : 1;
+  return {
+    width: Math.round(base.width * factor),
+    height: Math.round(base.height * factor),
+    offsetY: Math.round((base.offsetY || 0) * factor),
+  };
+}
+
 export function getAssetComponent(id: AssetId): FC<AssetProps> {
   return getAsset(id).Component;
 }
@@ -383,15 +407,4 @@ export function getAssetsByCategory(category: ComponentMetadata['category']): As
 }
 
 // Re-export individual components for direct imports
-export {
-  WalletAsset,
-  SmartphoneAsset,
-  PuzzleAsset,
-  CoinAsset,
-  HeadphonesAsset,
-  LampAsset,
-  FlowersVaseAsset,
-  NotepadAsset,
-  FolderAsset,
-  PenAsset,
-};
+export { WalletAsset, SmartphoneAsset, PuzzleAsset, CoinAsset, HeadphonesAsset, LampAsset, FlowersVaseAsset, NotepadAsset, FolderAsset, PenAsset };

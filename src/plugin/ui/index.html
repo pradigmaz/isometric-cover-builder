@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <title>Isometric Cover Builder Plugin</title>
+    <script>
+      (function() {
+        function showGlobalError(title, detail) {
+          try {
+            var box = document.getElementById('figma-plugin-fatal-error');
+            if (!box) {
+              box = document.createElement('div');
+              box.id = 'figma-plugin-fatal-error';
+              box.style.cssText = 'position:fixed;inset:0;background:#18181b;color:#fca5a5;padding:16px;z-index:999999;font-family:ui-monospace,monospace;font-size:11px;overflow:auto;line-height:1.5;box-sizing:border-box;border:2px solid #ef4444;';
+              document.body.appendChild(box);
+            }
+            box.innerHTML = '<div style="font-weight:bold;color:#ef4444;margin-bottom:8px;font-size:13px;">⚠️ ' + title + '</div>' +
+              '<div style="background:#27272a;padding:8px;border-radius:4px;margin-bottom:8px;white-space:pre-wrap;word-break:break-word;">' + detail + '</div>' +
+              '<button onclick="location.reload()" style="padding:6px 12px;background:#ef4444;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;">Перезагрузить</button>';
+          } catch (e) {
+            console.error('Fatal banner failure:', e);
+          }
+        }
+
+        window.addEventListener('error', function(event) {
+          console.error('[Plugin Global Error]', event.error || event.message);
+          var detail = (event.message || 'Ошибка выполнения скрипта') +
+            (event.filename ? '\n' + event.filename + ':' + event.lineno + ':' + event.colno : '') +
+            (event.error && event.error.stack ? '\n\n' + event.error.stack : '');
+          showGlobalError('Ошибка плагина (Runtime/Script)', detail);
+
+          try {
+            fetch('http://127.0.0.1:9876/plugin-log', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'window-error',
+                message: event.message,
+                filename: event.filename,
+                lineno: event.lineno,
+                stack: event.error && event.error.stack,
+                time: Date.now()
+              })
+            }).catch(function() {});
+          } catch (e) {}
+        });
+
+        window.addEventListener('unhandledrejection', function(event) {
+          console.error('[Plugin Unhandled Rejection]', event.reason);
+          var reason = event.reason;
+          var detail = (reason && (reason.stack || reason.message)) ? (reason.stack || reason.message) : String(reason);
+          showGlobalError('Необработанный Promise rejection', detail);
+
+          try {
+            fetch('http://127.0.0.1:9876/plugin-log', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'unhandled-rejection',
+                reason: detail,
+                time: Date.now()
+              })
+            }).catch(function() {});
+          } catch (e) {}
+        });
+      })();
+    </script>
+  </head>
+  <body class="bg-[#1e1e1e] text-stone-100 antialiased select-none overflow-x-hidden m-0 p-0 text-xs">
+    <div id="plugin-root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

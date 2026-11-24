@@ -38,6 +38,9 @@ tests/
 code_artifact.html
 isometric_cover_builder_plan.md
 
+# Temporary root artifacts / SVG dumps
+/*.svg
+
 # Antigravity / AI Agent artifacts
 .gemini
 .agents

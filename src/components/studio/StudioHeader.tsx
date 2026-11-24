@@ -8,21 +8,35 @@ import {
   Maximize2,
   ChevronDown,
   Check,
-  Plus,
+  Figma,
 } from 'lucide-react';
 import { CanvasFormatId, PaletteId } from '../../types/schema';
-import { FORMAT_PRESETS } from '../../config/formats';
 import { PALETTE_PRESETS } from '../../config/palettes';
 import { useCanvasStore } from '../../store/canvasStore';
 import { exportSvg, exportPng } from '../../engine/exporter';
-import { PaletteUploadModal } from './PaletteUploadModal';
+import { FigmaIntegrationModal } from './FigmaIntegrationModal';
+import { ThemeToggle } from './ThemeToggle';
 
-export const StudioHeader: React.FC = () => {
+const FORMAT_OPTIONS: Array<{
+  id: CanvasFormatId;
+  label: string;
+  dims: string;
+}> = [
+  { id: '1:1', label: '1:1', dims: '1080×1080' },
+  { id: 'og', label: 'OG', dims: '1200×630' },
+  { id: '9:16', label: '9:16', dims: '1080×1920' },
+  { id: '16:9', label: '16:9', dims: '1920×1080' },
+];
+
+interface StudioHeaderProps {
+  onOpenFigmaModal?: () => void;
+}
+
+export const StudioHeader: React.FC<StudioHeaderProps> = ({ onOpenFigmaModal }) => {
   const format = useCanvasStore((state) => state.format);
   const setFormat = useCanvasStore((state) => state.setFormat);
   const paletteId = useCanvasStore((state) => state.paletteId);
   const setPalette = useCanvasStore((state) => state.setPalette);
-  const customPalette = useCanvasStore((state) => state.customPalette);
 
   const snapToGrid = useCanvasStore((state) => state.snapToGrid);
   const toggleSnapToGrid = useCanvasStore((state) => state.toggleSnapToGrid);
@@ -32,11 +46,15 @@ export const StudioHeader: React.FC = () => {
 
   const undo = useCanvasStore((state) => state.undo);
   const redo = useCanvasStore((state) => state.redo);
-  const canUndo = useCanvasStore((state) => (typeof state.canUndo === 'function' ? (state.canUndo as () => boolean)() : Boolean(state.canUndo)));
-  const canRedo = useCanvasStore((state) => (typeof state.canRedo === 'function' ? (state.canRedo as () => boolean)() : Boolean(state.canRedo)));
+  const canUndo = useCanvasStore((state) =>
+    typeof state.canUndo === 'function' ? (state.canUndo as () => boolean)() : Boolean(state.canUndo)
+  );
+  const canRedo = useCanvasStore((state) =>
+    typeof state.canRedo === 'function' ? (state.canRedo as () => boolean)() : Boolean(state.canRedo)
+  );
 
   const [isExporting, setIsExporting] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFigmaModalOpen, setIsFigmaModalOpen] = useState(false);
 
   const closeExportPopover = () => {
     const popover = document.getElementById('export-popover');
@@ -85,8 +103,7 @@ export const StudioHeader: React.FC = () => {
     }
   };
 
-  const formatList: CanvasFormatId[] = ['og', '16:9', '1:1', '9:16'];
-  const paletteList: PaletteId[] = ['warm-pastel', 'fresh-mint', 'soft-coral'];
+  const canonicalPaletteIds: PaletteId[] = ['lavender', 'peach-mint', 'turquoise-purple'];
 
   return (
     <header
@@ -94,70 +111,70 @@ export const StudioHeader: React.FC = () => {
       aria-label="Studio toolbar"
       aria-controls="isometric-canvas"
       {...({ focusgroup: 'toolbar wrap' } as Record<string, string>)}
-      className="h-14 border-b border-[var(--border)] bg-[var(--bg)] px-4 flex items-center justify-between gap-3 select-none z-20 shrink-0"
+      className="h-13 border-b border-[var(--border)] bg-[var(--bg)] px-2 sm:px-3 lg:px-4 flex items-center justify-between gap-1.5 sm:gap-2 select-none z-20 shrink-0 overflow-x-auto no-scrollbar"
     >
-      {/* Brand & Project Metadata */}
-      <div className="flex items-center gap-3 min-w-max">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-[var(--accent)] text-[var(--bg)] flex items-center justify-center font-bold text-xs tracking-wider shadow-xs">
-            ISO
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-sm font-bold text-[var(--fg)] tracking-tight leading-none">
-                Isometric Cover Builder
-              </h1>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--surface)] text-[var(--fg-2)] font-medium border border-[var(--border)]">
-                v2.0
-              </span>
-            </div>
-            <p className="text-[10px] text-[var(--fg-2)] leading-tight">
-              Конструктор изометрических обложек
-            </p>
+      {/* 1. Brand & Logo */}
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="w-7 h-7 rounded-lg bg-[var(--accent)] text-[var(--bg)] flex items-center justify-center font-bold text-xs tracking-wider shadow-xs">
+          ISO
+        </div>
+        <div className="hidden lg:block">
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-sm font-bold text-[var(--fg)] tracking-tight leading-none whitespace-nowrap">
+              <span className="hidden xl:inline">Isometric Cover Builder</span>
+              <span className="xl:hidden">Cover Builder</span>
+            </h1>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--surface)] text-[var(--fg-2)] font-medium border border-[var(--border)]">
+              v2.0
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Format Switcher */}
-      <div className="hidden lg:flex items-center bg-[var(--surface)] p-0.5 rounded-lg border border-[var(--border)]">
-        {formatList.map((fmtId) => {
-          const spec = FORMAT_PRESETS[fmtId];
-          const isActive = format === fmtId;
+      {/* 2. Prominent First-Class Canvas Format Selector */}
+      <div
+        role="group"
+        aria-label="Canvas format selection"
+        className="flex items-center bg-[var(--surface)] dark:bg-zinc-900/90 p-0.5 rounded-lg border border-[var(--border)] dark:border-zinc-800 shrink-0"
+      >
+        {FORMAT_OPTIONS.map((opt) => {
+          const isActive = format === opt.id;
           return (
             <button
-              key={fmtId}
+              key={opt.id}
               type="button"
-              onClick={() => setFormat(fmtId)}
-              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
+              onClick={() => setFormat(opt.id)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-all duration-200 ease-out active:scale-95 cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
                 isActive
-                  ? 'bg-[var(--bg)] text-[var(--fg)] shadow-xs font-semibold'
-                  : 'text-[var(--fg-2)] hover:text-[var(--fg)]'
+                  ? 'bg-[var(--bg)] text-[var(--fg)] shadow-xs font-semibold ring-1 ring-[var(--border)] dark:bg-zinc-800 dark:text-zinc-100 dark:ring-zinc-700'
+                  : 'text-[var(--fg-2)] hover:text-[var(--fg)] hover:bg-[var(--bg)]/40 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800/50'
               }`}
-              title={spec.description}
-              aria-label={`Формат ${spec.shortLabel}`}
+              title={`Формат ${opt.label} (${opt.dims})`}
+              aria-label={`Формат ${opt.label} (${opt.dims})`}
             >
-              {spec.shortLabel}
+              <span className="font-semibold whitespace-nowrap">{opt.label}</span>
             </button>
           );
         })}
       </div>
 
-      {/* Palette Switcher */}
-      <div className="flex items-center gap-1.5 bg-[var(--surface)] p-1 rounded-lg border border-[var(--border)]">
-        {paletteList.map((palId) => {
+      {/* 3. Nicely Grouped Palette Pills */}
+      <div className="flex items-center gap-1 bg-[var(--surface)] dark:bg-zinc-900/90 p-0.5 rounded-lg border border-[var(--border)] dark:border-zinc-800 shrink-0">
+        {canonicalPaletteIds.map((palId) => {
           const cfg = PALETTE_PRESETS[palId];
+          if (!cfg) return null;
           const isActive = paletteId === palId;
           return (
             <button
               key={palId}
               type="button"
               onClick={() => setPalette(palId)}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-all focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
                 isActive
-                  ? 'bg-[var(--bg)] text-[var(--fg)] shadow-xs font-semibold ring-1 ring-[var(--border)]'
-                  : 'text-[var(--fg-2)] hover:text-[var(--fg)]'
+                  ? 'bg-[var(--bg)] text-[var(--fg)] shadow-xs font-semibold ring-1 ring-[var(--border)] dark:bg-zinc-800 dark:text-zinc-100 dark:ring-zinc-700'
+                  : 'text-[var(--fg-2)] hover:text-[var(--fg)] dark:text-zinc-400 dark:hover:text-zinc-100'
               }`}
-              title={`Палитра Figma: ${cfg.name}`}
+              title={`Палитра: ${cfg.name}`}
               aria-label={`Палитра ${cfg.name}`}
             >
               <div className="flex -space-x-1 items-center">
@@ -169,52 +186,14 @@ export const StudioHeader: React.FC = () => {
                   />
                 ))}
               </div>
-              <span className="hidden sm:inline text-[11px] font-medium">{cfg.name}</span>
+              <span className="hidden 2xl:inline text-[11px] whitespace-nowrap">{cfg.name}</span>
             </button>
           );
         })}
-
-        {/* Custom palette tab when loaded */}
-        {customPalette && (
-          <button
-            type="button"
-            onClick={() => setPalette('custom')}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-all focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
-              paletteId.startsWith('custom')
-                ? 'bg-[var(--bg)] text-[var(--fg)] shadow-xs font-semibold ring-1 ring-[var(--border)]'
-                : 'text-[var(--fg-2)] hover:text-[var(--fg)]'
-            }`}
-            title={`Пользовательская палитра: ${customPalette.name}`}
-            aria-label={`Палитра ${customPalette.name}`}
-          >
-            <div className="flex -space-x-1 items-center">
-              {customPalette.figmaSwatches.map((color, idx) => (
-                <span
-                  key={idx}
-                  className="w-2.5 h-2.5 rounded-full border border-[var(--border)] shadow-2xs"
-                  style={{ backgroundColor: color }}
-                />
-              ))}
-            </div>
-            <span className="hidden sm:inline text-[11px] font-medium">{customPalette.name}</span>
-          </button>
-        )}
-
-        {/* Upload Palette Button */}
-        <button
-          type="button"
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-[var(--accent)] hover:bg-[var(--bg)] transition-all font-medium border border-dashed border-[var(--accent)]/40 focus-visible:outline-2 focus-visible:outline-[var(--accent)] cursor-pointer"
-          title="Загрузить цветовую палитру (HEX / JSON)"
-          aria-label="Загрузить палитру"
-        >
-          <Plus className="w-3 h-3" />
-          <span className="hidden sm:inline text-[11px]">Загрузить</span>
-        </button>
       </div>
 
-      {/* Tools: Undo/Redo, Grid, Snap, Viewport */}
-      <div className="flex items-center gap-1">
+      {/* 4. Tools: Undo/Redo, Grid, Snap, Viewport */}
+      <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
         <button
           type="button"
           onClick={() => undo()}
@@ -245,13 +224,13 @@ export const StudioHeader: React.FC = () => {
           <Redo2 className="w-3.5 h-3.5" />
         </button>
 
-        <div className="h-4 w-px bg-[var(--border)] mx-1" />
+        <div className="h-4 w-px bg-[var(--border)] mx-0.5" />
 
         <button
           type="button"
           onClick={() => toggleShowGrid()}
           aria-pressed={showGrid ? 'true' : 'false'}
-          className={`p-1.5 rounded-md border transition-colors focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
+          className={`p-1.5 rounded-md border transition-colors focus-visible:outline-2 focus-visible:outline-[var(--accent)] cursor-pointer ${
             showGrid
               ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--bg)]'
               : 'border-[var(--border)] bg-[var(--bg)] text-[var(--fg-2)] hover:bg-[var(--surface)] hover:text-[var(--fg)]'
@@ -266,7 +245,7 @@ export const StudioHeader: React.FC = () => {
           type="button"
           onClick={() => toggleSnapToGrid()}
           aria-pressed={snapToGrid ? 'true' : 'false'}
-          className={`p-1.5 rounded-md border transition-colors focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
+          className={`p-1.5 rounded-md border transition-colors focus-visible:outline-2 focus-visible:outline-[var(--accent)] cursor-pointer ${
             snapToGrid
               ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--bg)]'
               : 'border-[var(--border)] bg-[var(--bg)] text-[var(--fg-2)] hover:bg-[var(--surface)] hover:text-[var(--fg)]'
@@ -280,7 +259,7 @@ export const StudioHeader: React.FC = () => {
         <button
           type="button"
           onClick={() => resetViewport()}
-          className="p-1.5 rounded-md border border-[var(--border)] bg-[var(--bg)] text-[var(--fg-2)] hover:bg-[var(--surface)] hover:text-[var(--fg)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+          className="p-1.5 rounded-md border border-[var(--border)] bg-[var(--bg)] text-[var(--fg-2)] hover:bg-[var(--surface)] hover:text-[var(--fg)] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--accent)] cursor-pointer"
           title="Сбросить масштаб и положение холста"
           aria-label="Сбросить масштаб и положение холста"
         >
@@ -288,82 +267,100 @@ export const StudioHeader: React.FC = () => {
         </button>
       </div>
 
-      {/* Export Button & Popover */}
-      <div className="relative">
-        <div className="flex rounded-lg shadow-xs">
-          <button
-            type="button"
-            onClick={handleExportSvg}
-            disabled={isExporting}
-            className="flex items-center gap-1.5 bg-[var(--accent)] hover:opacity-90 text-[var(--bg)] px-3 py-1.5 rounded-l-lg text-xs font-semibold transition-opacity disabled:opacity-50 cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-            title="Экспорт чистого SVG вектора с подстановкой цветов для Figma"
-            aria-label="Экспорт SVG"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>{isExporting ? 'Экспорт...' : 'Экспорт SVG'}</span>
-          </button>
+      {/* 5. Figma Integration & Export Buttons */}
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <ThemeToggle />
 
-          <button
-            type="button"
-            disabled={isExporting}
-            popoverTarget="export-popover"
-            {...({ popovertarget: 'export-popover' } as any)}
-            className="export-anchor bg-[var(--accent)] hover:opacity-90 text-[var(--bg)] px-1.5 py-1.5 rounded-r-lg border-l border-[var(--bg)]/20 transition-opacity disabled:opacity-50 cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-            title="Дополнительные опции экспорта"
-            aria-label="Опции экспорта"
-          >
-            <ChevronDown className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        <div
-          id="export-popover"
-          {...({ popover: 'auto' } as any)}
-          className="studio-dropdown w-56 rounded-lg bg-[var(--bg)] border border-[var(--border)] shadow-lg p-1 text-xs text-[var(--fg)]"
+        <button
+          type="button"
+          onClick={() => (onOpenFigmaModal ? onOpenFigmaModal() : setIsFigmaModalOpen(true))}
+          className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg border border-[var(--border)] dark:border-zinc-800 bg-[var(--surface)] dark:bg-zinc-900 hover:bg-[var(--bg)] dark:hover:bg-zinc-800 text-[var(--fg)] dark:text-zinc-200 text-xs font-semibold transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent)] shrink-0"
+          title="Интеграция с Figma: копирование вектора или скачивание плагина"
+          aria-label="Плагин Figma"
         >
-          <div className="px-3 py-1 text-[10px] font-semibold text-[var(--fg-2)] uppercase tracking-wider">
-            Вектор (Figma Ready)
-          </div>
-          <button
-            type="button"
-            onClick={handleExportSvg}
-            className="w-full px-3 py-1.5 text-left text-[var(--fg)] hover:bg-[var(--surface)] rounded-md flex items-center justify-between transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-          >
-            <span>SVG (100% вектор, hex токены)</span>
-            <Check className="w-3 h-3 text-emerald-600" />
-          </button>
+          <Figma className="w-3.5 h-3.5" style={{ color: '#F24E1E' }} />
+          <span className="hidden xl:inline">Плагин Figma</span>
+        </button>
 
-          <div className="my-1 border-t border-[var(--border)]" />
-          <div className="px-3 py-1 text-[10px] font-semibold text-[var(--fg-2)] uppercase tracking-wider">
-            Растр высокого разрешения
+        {/* Export Button & Popover */}
+        <div className="relative shrink-0">
+          <div className="flex rounded-lg shadow-xs">
+            <button
+              type="button"
+              onClick={handleExportSvg}
+              disabled={isExporting}
+              className="flex items-center gap-1.5 bg-[var(--accent)] dark:bg-zinc-100 text-[var(--bg)] dark:text-zinc-900 hover:opacity-90 dark:hover:bg-white px-2.5 sm:px-3 py-1.5 rounded-l-lg text-xs font-semibold transition-opacity disabled:opacity-50 cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent)] whitespace-nowrap"
+              title="Экспорт чистого SVG вектора с подстановкой цветов для Figma"
+              aria-label="Экспорт SVG"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>{isExporting ? 'Экспорт...' : 'Экспорт SVG'}</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={isExporting}
+              popoverTarget="export-popover"
+              {...({ popovertarget: 'export-popover' } as any)}
+              className="export-anchor bg-[var(--accent)] dark:bg-zinc-100 text-[var(--bg)] dark:text-zinc-900 hover:opacity-90 dark:hover:bg-white px-1.5 py-1.5 rounded-r-lg border-l border-[var(--bg)]/20 dark:border-zinc-300 transition-opacity disabled:opacity-50 cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+              title="Дополнительные опции экспорта"
+              aria-label="Опции экспорта"
+            >
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => handleExportPng(2)}
-            className="w-full px-3 py-1.5 text-left text-[var(--fg)] hover:bg-[var(--surface)] rounded-md flex items-center justify-between transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+
+          <div
+            id="export-popover"
+            {...({ popover: 'auto' } as any)}
+            className="studio-dropdown w-56 rounded-lg bg-[var(--bg)] border border-[var(--border)] shadow-lg p-1 text-xs text-[var(--fg)]"
           >
-            <span>PNG 2x (Рекомендовано)</span>
-            <span className="text-[10px] text-[var(--fg-2)]">High-Res</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleExportPng(3)}
-            className="w-full px-3 py-1.5 text-left text-[var(--fg)] hover:bg-[var(--surface)] rounded-md flex items-center justify-between transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-          >
-            <span>PNG 3x (Ultra Print)</span>
-            <span className="text-[10px] text-[var(--fg-2)]">Ultra-Res</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleExportPng(1)}
-            className="w-full px-3 py-1.5 text-left text-[var(--fg)] hover:bg-[var(--surface)] rounded-md transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-          >
-            <span>PNG 1x (Стандарт)</span>
-          </button>
+            <div className="px-3 py-1 text-[10px] font-semibold text-[var(--fg-2)] uppercase tracking-wider">
+              Вектор (Figma Ready)
+            </div>
+            <button
+              type="button"
+              onClick={handleExportSvg}
+              className="w-full px-3 py-1.5 text-left text-[var(--fg)] hover:bg-[var(--surface)] rounded-md flex items-center justify-between transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            >
+              <span>SVG (100% вектор, hex токены)</span>
+              <Check className="w-3 h-3 text-emerald-600" />
+            </button>
+
+            <div className="my-1 border-t border-[var(--border)]" />
+            <div className="px-3 py-1 text-[10px] font-semibold text-[var(--fg-2)] uppercase tracking-wider">
+              Растр высокого разрешения
+            </div>
+            <button
+              type="button"
+              onClick={() => handleExportPng(2)}
+              className="w-full px-3 py-1.5 text-left text-[var(--fg)] hover:bg-[var(--surface)] rounded-md flex items-center justify-between transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            >
+              <span>PNG 2x (Рекомендовано)</span>
+              <span className="text-[10px] text-[var(--fg-2)]">High-Res</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleExportPng(3)}
+              className="w-full px-3 py-1.5 text-left text-[var(--fg)] hover:bg-[var(--surface)] rounded-md flex items-center justify-between transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            >
+              <span>PNG 3x (Ultra Print)</span>
+              <span className="text-[10px] text-[var(--fg-2)]">Ultra-Res</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleExportPng(1)}
+              className="w-full px-3 py-1.5 text-left text-[var(--fg)] hover:bg-[var(--surface)] rounded-md transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            >
+              <span>PNG 1x (Стандарт)</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <PaletteUploadModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      {!onOpenFigmaModal && (
+        <FigmaIntegrationModal isOpen={isFigmaModalOpen} onClose={() => setIsFigmaModalOpen(false)} />
+      )}
     </header>
   );
 };

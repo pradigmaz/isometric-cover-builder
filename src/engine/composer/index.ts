@@ -2,6 +2,7 @@ import {
   AICompositionRequest,
   AICompositionResponse,
 } from '../../types/schema';
+import { generateCover } from '../generator';
 import {
   composeOfflineHeuristic,
   createPrng,
@@ -45,8 +46,8 @@ export interface ComposeCoverOptions {
 /**
  * Universal cover orchestrator with automatic fallback:
  * 1. If useLlm is requested, tries LLM adapter.
- * 2. If LLM fails (network error, timeout, or schema invalidation), gracefully falls back to offline heuristics.
- * 3. By default (useLlm = false), operates 100% offline in browser in <5ms.
+ * 2. If LLM fails (network error, timeout, or schema invalidation), gracefully falls back to offline canonical generator.
+ * 3. By default (useLlm = false), operates 100% offline in browser in <5ms producing tight 2-3 item canonical compositions.
  */
 export async function composeCover(
   request: AICompositionRequest,
@@ -64,5 +65,5 @@ export async function composeCover(
     }
   }
 
-  return composeOfflineHeuristic(request);
+  return generateCover(request);
 }

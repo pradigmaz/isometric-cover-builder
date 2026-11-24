@@ -5,6 +5,7 @@ import { getAssetComponent } from '../../assets/registry';
 export interface CanvasItemViewProps {
   item: CanvasItem;
   isSelected?: boolean;
+  isDragging?: boolean;
   onSelect: (uid: string, e: React.PointerEvent) => void;
   onItemPointerDown: (item: CanvasItem, e: React.PointerEvent) => void;
 }
@@ -12,6 +13,7 @@ export interface CanvasItemViewProps {
 export const CanvasItemView: React.FC<CanvasItemViewProps> = memo(({
   item,
   isSelected = false,
+  isDragging = false,
   onSelect,
   onItemPointerDown,
 }) => {
@@ -23,6 +25,10 @@ export const CanvasItemView: React.FC<CanvasItemViewProps> = memo(({
   const rotation = item.rotation || 0;
 
   const transform = `translate(${item.x}, ${visualY}) rotate(${rotation}) scale(${scaleX}, ${scaleY}) translate(-${center}, -${center})`;
+  const isGhost = item.role === 'ghost';
+  const effectiveOpacity = isGhost
+    ? (item.opacity ?? 0.22)
+    : (item.opacity ?? 1);
 
   return (
     <g
@@ -31,9 +37,12 @@ export const CanvasItemView: React.FC<CanvasItemViewProps> = memo(({
       data-role={item.role}
       data-selected={isSelected}
       transform={transform}
-      opacity={item.opacity ?? (item.role === 'ghost' ? 0.22 : 1)}
+      opacity={effectiveOpacity}
       className="cursor-grab active:cursor-grabbing select-none"
-      style={{ touchAction: 'none' }}
+      style={{
+        touchAction: 'none',
+        transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease',
+      }}
       onPointerDown={(e) => {
         e.stopPropagation();
         onSelect(item.uid, e);

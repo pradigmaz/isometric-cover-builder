@@ -1,6 +1,10 @@
 import { PaletteConfig, PaletteId, PaletteTokens } from '../types/schema';
+import { CANONICAL_PALETTES } from './canonicalPalettes';
+
+export { CANONICAL_PALETTES } from './canonicalPalettes';
 
 const RAW_PALETTE_PRESETS: Record<string, PaletteConfig> = {
+  ...CANONICAL_PALETTES,
   'warm-pastel': {
     id: 'warm-pastel',
     name: 'Тёплая пастель',
@@ -48,7 +52,7 @@ const RAW_PALETTE_PRESETS: Record<string, PaletteConfig> = {
   },
 };
 
-export const DEFAULT_PALETTE: PaletteId = 'warm-pastel';
+export const DEFAULT_PALETTE: PaletteId = 'lavender';
 
 export const DEFAULT_CUSTOM_PALETTE: PaletteConfig = {
   id: 'custom',
