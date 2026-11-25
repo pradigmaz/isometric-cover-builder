@@ -14,6 +14,7 @@ import {
 import { DEFAULT_FORMAT, getFormatSpec } from '../config/formats';
 import { DEFAULT_PALETTE, registerCustomPalette } from '../config/palettes';
 import { composeCover } from '../engine/composer';
+import { UNIFORM_SCALE_BY_FORMAT, clampItemsToArtboard } from '../engine/smartComposer';
 import { snapToIsoGrid } from '../engine/isometric';
 import {
   CANONICAL_COMPOSITIONS,
@@ -68,6 +69,7 @@ export interface CanvasStoreState {
 
   addItem: (assetIdOrItem: AssetId | Partial<CanvasItem>, size?: AssetSize, role?: ItemRole, x?: number, y?: number) => string;
   updateItem: (uid: string, patch: Partial<CanvasItem>, recordHistory?: boolean) => void;
+  commitSnapshot: (snap: SceneSnapshot) => void;
   removeItem: (uid: string) => void;
   duplicateItem: (uid: string) => string | null;
   setItems: (items: CanvasItem[]) => void;
@@ -117,6 +119,9 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     const state = get();
     if (state.format === format) return;
     const snap = createSnapshot(state);
+    const oldSpec = getFormatSpec(state.format);
+    const newSpec = getFormatSpec(format);
+    const scaleRatio = UNIFORM_SCALE_BY_FORMAT[format] / UNIFORM_SCALE_BY_FORMAT[state.format];
 
     const canonicalItem = state.items.find((i) => i.uid.startsWith('canonical-'));
     if (canonicalItem) {
@@ -125,9 +130,24 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
       );
       if (canonicalId) {
         const newItems = getCanonicalComposition(canonicalId, format);
+        const arranged = rearrangeItemsForLayout(newItems, state.layoutMode, format);
+        const existingGhost = state.items.find(
+          (i) => i.role === 'ghost' && !arranged.some((n) => n.assetId === i.assetId)
+        );
+        const combined = existingGhost
+          ? [
+              ...arranged,
+              {
+                ...existingGhost,
+                x: Math.round((existingGhost.x / oldSpec.width) * newSpec.width),
+                y: Math.round((existingGhost.y / oldSpec.height) * newSpec.height),
+                scale: Number(Math.max(0.2, existingGhost.scale * scaleRatio).toFixed(2)),
+              },
+            ]
+          : arranged;
         set({
           format,
-          items: newItems,
+          items: clampItemsToArtboard(combined, format),
           past: [...state.past.slice(-MAX_HISTORY + 1), snap],
           future: [],
         });
@@ -135,18 +155,19 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
       }
     }
 
-    const oldSpec = getFormatSpec(state.format);
-    const newSpec = getFormatSpec(format);
-    const scaleRatio = newSpec.defaultHeroScale / oldSpec.defaultHeroScale;
-
     const transformedItems = state.items.map((it) => ({
       ...it,
-      x: Math.round(Math.max(40, Math.min(newSpec.width - 40, (it.x / oldSpec.width) * newSpec.width))),
-      y: Math.round(Math.max(40, Math.min(newSpec.height - 40, (it.y / oldSpec.height) * newSpec.height))),
+      x: Math.round((it.x / oldSpec.width) * newSpec.width),
+      y: Math.round((it.y / oldSpec.height) * newSpec.height),
       scale: Number(Math.max(0.2, it.scale * scaleRatio).toFixed(2)),
     }));
 
-    set({ format, items: transformedItems, past: [...state.past.slice(-MAX_HISTORY + 1), snap], future: [] });
+    set({
+      format,
+      items: clampItemsToArtboard(transformedItems, format),
+      past: [...state.past.slice(-MAX_HISTORY + 1), snap],
+      future: [],
+    });
   },
   setPalette: (paletteId) => set((s) => ({ paletteId, past: [...s.past.slice(-MAX_HISTORY + 1), createSnapshot(get())], future: [] })),
   setCustomPalette: (customPalette) => {
@@ -160,7 +181,8 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   },
   setLayoutMode: (layoutMode) => {
     const state = get();
-    const newItems = rearrangeItemsForLayout(state.items, layoutMode, state.format);
+    const rearranged = rearrangeItemsForLayout(state.items, layoutMode, state.format);
+    const newItems = clampItemsToArtboard(rearranged, state.format);
     const snap = createSnapshot(state);
     set({
       layoutMode,
@@ -263,6 +285,13 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     } else {
       set({ items: state.items.map((it) => (it.uid === uid ? { ...it, ...patch } : it)) });
     }
+  },
+
+  commitSnapshot: (snap) => {
+    set((s) => ({
+      past: [...s.past.slice(-MAX_HISTORY + 1), snap],
+      future: [],
+    }));
   },
 
   removeItem: (uid) => {

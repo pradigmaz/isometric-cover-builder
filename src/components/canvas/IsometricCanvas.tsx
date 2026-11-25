@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useCanvasStore } from '../../store/canvasStore';
+import { createSnapshot, SceneSnapshot } from '../../store/layoutReorder';
 import { getFormatSpec } from '../../config/formats';
 import { getPaletteConfig, getCssTokensStyle } from '../../config/palettes';
 import {
@@ -68,8 +69,17 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({ isModalOpen = 
     isMulti: false,
     startPoint: { x: 0, y: 0 },
     startPositions: {} as Record<string, { x: number; y: number }>,
+    preDragSnapshot: null as SceneSnapshot | null,
   });
-  const resizeRef = useRef({ isResizing: false, uid: null as string | null, startDist: 1, startScale: 1, center: { x: 0, y: 0 } });
+  const resizeRef = useRef({
+    isResizing: false,
+    hasResized: false,
+    uid: null as string | null,
+    startDist: 1,
+    startScale: 1,
+    center: { x: 0, y: 0 },
+    preResizeSnapshot: null as SceneSnapshot | null,
+  });
   const panRef = useRef({ isPanning: false, startX: 0, startY: 0, initialPanX: 0, initialPanY: 0 });
   const [marqueeState, setMarqueeState] = useState<MarqueeState>(INITIAL_MARQUEE_STATE);
 
@@ -94,7 +104,8 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({ isModalOpen = 
       if (activeUids.includes(it.uid)) startPositions[it.uid] = { x: it.x, y: it.y };
     });
 
-    dragRef.current = { isDragging: true, hasMoved: false, uid: item.uid, isMulti, startPoint: pt, startPositions };
+    const preDragSnapshot = createSnapshot(useCanvasStore.getState());
+    dragRef.current = { isDragging: true, hasMoved: false, uid: item.uid, isMulti, startPoint: pt, startPositions, preDragSnapshot };
     (e.target as Element).setPointerCapture?.(e.pointerId);
   }, [items, selectGroup, selectItem]);
 
@@ -107,7 +118,8 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({ isModalOpen = 
       const visualY = selectedItem.y - (selectedItem.zHeight || 0) + bounds.offsetY * startScale;
       const center = { x: selectedItem.x, y: visualY };
       const startDist = Math.hypot(pt.x - center.x, pt.y - center.y) || 1;
-      resizeRef.current = { isResizing: true, uid: selectedItem.uid, startDist, startScale, center };
+      const preResizeSnapshot = createSnapshot(useCanvasStore.getState());
+      resizeRef.current = { isResizing: true, hasResized: false, uid: selectedItem.uid, startDist, startScale, center, preResizeSnapshot };
       (e.target as Element).setPointerCapture?.(e.pointerId);
     },
     [selectedItem]
@@ -140,6 +152,7 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({ isModalOpen = 
       let scale = Math.max(0.3, Math.min(3.5, +(resizeRef.current.startScale * (currDist / resizeRef.current.startDist)).toFixed(2)));
       const item = items.find((it) => it.uid === resizeRef.current.uid);
       if (item) scale = clampItemScale(item, scale, formatSpec.width, formatSpec.height);
+      resizeRef.current.hasResized = true;
       updateItem(resizeRef.current.uid, { scale }, false);
       return;
     }
@@ -191,10 +204,10 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({ isModalOpen = 
       try { (e.currentTarget as Element).releasePointerCapture?.(e.pointerId); } catch { /* ignore */ }
     }
     if (resizeRef.current.isResizing && resizeRef.current.uid) {
-      const uid = resizeRef.current.uid;
-      const cur = items.find((it) => it.uid === uid);
-      if (cur?.scale !== undefined) updateItem(uid, { scale: cur.scale }, true);
-      resizeRef.current = { isResizing: false, uid: null, startDist: 1, startScale: 1, center: { x: 0, y: 0 } };
+      if (resizeRef.current.hasResized && resizeRef.current.preResizeSnapshot) {
+        useCanvasStore.getState().commitSnapshot(resizeRef.current.preResizeSnapshot);
+      }
+      resizeRef.current = { isResizing: false, hasResized: false, uid: null, startDist: 1, startScale: 1, center: { x: 0, y: 0 }, preResizeSnapshot: null };
     }
     if (panRef.current.isPanning) {
       panRef.current.isPanning = false;
@@ -204,18 +217,17 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({ isModalOpen = 
       if (!dragRef.current.hasMoved && !dragRef.current.isMulti && selectedUids.length > 1 && dragRef.current.uid) {
         selectItem(dragRef.current.uid);
       }
-      if (dragRef.current.hasMoved && dragRef.current.uid) {
-        const cur = items.find((it) => it.uid === dragRef.current.uid);
-        if (cur) updateItem(cur.uid, { x: cur.x, y: cur.y }, true);
+      if (dragRef.current.hasMoved && dragRef.current.preDragSnapshot) {
+        useCanvasStore.getState().commitSnapshot(dragRef.current.preDragSnapshot);
       }
-      dragRef.current = { isDragging: false, hasMoved: false, uid: null, isMulti: false, startPoint: { x: 0, y: 0 }, startPositions: {} };
+      dragRef.current = { isDragging: false, hasMoved: false, uid: null, isMulti: false, startPoint: { x: 0, y: 0 }, startPositions: {}, preDragSnapshot: null };
     }
   };
 
   const handlePointerCancel = (e: React.PointerEvent<SVGSVGElement>) => {
     setMarqueeState(INITIAL_MARQUEE_STATE);
-    resizeRef.current = { isResizing: false, uid: null, startDist: 1, startScale: 1, center: { x: 0, y: 0 } };
-    dragRef.current = { isDragging: false, hasMoved: false, uid: null, isMulti: false, startPoint: { x: 0, y: 0 }, startPositions: {} };
+    resizeRef.current = { isResizing: false, hasResized: false, uid: null, startDist: 1, startScale: 1, center: { x: 0, y: 0 }, preResizeSnapshot: null };
+    dragRef.current = { isDragging: false, hasMoved: false, uid: null, isMulti: false, startPoint: { x: 0, y: 0 }, startPositions: {}, preDragSnapshot: null };
     if (panRef.current.isPanning) {
       panRef.current.isPanning = false;
       try { (e.currentTarget as Element).releasePointerCapture?.(e.pointerId); } catch { /* ignore */ }
@@ -341,7 +353,6 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({ isModalOpen = 
                   (dragRef.current.isDragging && !!dragRef.current.startPositions[item.uid]) ||
                   (resizeRef.current.isResizing && resizeRef.current.uid === item.uid)
                 }
-                onSelect={(uid) => selectItem(uid)}
                 onItemPointerDown={handleItemPointerDown}
               />
             ))}

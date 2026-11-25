@@ -100,18 +100,6 @@ export function getAssetFill(color: string, isGhost: boolean): string {
       case '#181817':
       case 'black':
       case 'secondary':
-        return 'var(--token-secondary)';
-      case 'white':
-      case 'light':
-      case '#FFFDF9':
-        return 'var(--token-light)';
-      case 'primary':
-      case '#F9ECB0':
-      case 'surface':
-      case '#D7CDF5':
-      case '#FAC896':
-      case '#FDD7B9':
-        return 'var(--token-surface)';
       case 'accent':
       case 'coral':
       case 'lilac':
@@ -120,7 +108,16 @@ export function getAssetFill(color: string, isGhost: boolean): string {
       case '#F9A3AA':
       case '#80DADA':
       case '#5ABEBE':
-        return 'var(--token-secondary)';
+        return 'var(--token-primary)';
+      case 'white':
+      case 'light':
+      case '#FFFDF9':
+      case 'primary':
+      case '#F9ECB0':
+      case 'surface':
+      case '#D7CDF5':
+      case '#FAC896':
+      case '#FDD7B9':
       default:
         return 'var(--token-surface)';
     }
@@ -141,6 +138,7 @@ export function getAssetFill(color: string, isGhost: boolean): string {
     case '#F9ECB0':
       return 'var(--token-primary, #F9ECB0)'; // Soft pastel yellow hero
     case 'coral':
+      return 'var(--token-accent, #F9A3AA)';
     case '#F9A3AA':
     case '#F1899C':
       return '#F9A3AA'; // Authentic coral/pink puzzle piece
@@ -149,10 +147,11 @@ export function getAssetFill(color: string, isGhost: boolean): string {
       return 'var(--token-surface, #D7CDF5)'; // Authentic soft lilac
     case 'lilac':
     case 'accent':
+      return 'var(--token-accent, #AA9BF0)';
     case '#8571D9':
     case '#7864D7':
     case '#AA9BF0':
-      return color === 'lilac' || color === 'accent' ? '#AA9BF0' : color; // Authentic Figma purple/lilac shades
+      return color; // Authentic Figma purple/lilac shades
     case '#FAC896':
     case '#FDD7B9':
       return color; // Authentic gold / warm peach

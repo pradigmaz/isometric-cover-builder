@@ -1,5 +1,5 @@
 import React from 'react';
-import { AssetContainer, type AssetProps } from '../primitives';
+import { AssetContainer, getAssetFill, type AssetProps } from '../primitives';
 
 export type SmartphoneTokenRole = 'surface' | 'accent' | 'light' | 'secondary' | 'primary';
 
@@ -12,26 +12,12 @@ export type SmartphoneTokenRole = 'surface' | 'accent' | 'light' | 'secondary' |
  *   - Highlights: var(--token-light)
  *   - Chassis, bezel & puzzle seam cuts: var(--token-secondary)
  * - Ghost:
- *   - Piece 1: var(--token-secondary)
- *   - Piece 2: var(--token-surface)
- *   - Yellow puzzle piece: var(--token-secondary)
- *   - Highlights: var(--token-light)
- *   - Chassis, bezel & puzzle seam cuts: var(--token-secondary)
+ *   - Delegates to getAssetFill(role, true) for soft tonal silhouette tokens
+ *     (var(--token-surface) / var(--token-primary))
  */
 export function getSmartphoneFill(role: SmartphoneTokenRole, isGhost: boolean): string {
   if (isGhost) {
-    switch (role) {
-      case 'surface':
-        return 'var(--token-surface)';
-      case 'accent':
-        return 'var(--token-secondary)';
-      case 'primary':
-        return 'var(--token-secondary)';
-      case 'light':
-        return 'var(--token-light)';
-      case 'secondary':
-        return 'var(--token-secondary)';
-    }
+    return getAssetFill(role, true);
   }
 
   switch (role) {

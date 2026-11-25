@@ -49,9 +49,19 @@ export function buildCleanSvgString(
   // 1. Remove all editor-only nodes (grid lines, selection overlay, handles)
   clone.querySelectorAll('[data-editor-only="true"]').forEach((node) => node.remove());
 
-  // 2. Reset editor pan/zoom transforms
+  // 2. Reset editor pan/zoom transforms and ensure structured item IDs for Figma parity
   clone.querySelectorAll('[data-viewport-group="true"]').forEach((node) => {
     node.removeAttribute('transform');
+  });
+  clone.querySelectorAll('[data-uid]').forEach((node) => {
+    const uid = node.getAttribute('data-uid');
+    const role = node.getAttribute('data-role') || 'foreground';
+    const assetId = node.getAttribute('data-asset-id');
+    const size = node.getAttribute('data-size') || 'L';
+    const currentId = node.getAttribute('id') || '';
+    if (uid && assetId && !/^canvas-item-(foreground|ghost)-[a-z_]+-[ls]-/i.test(currentId)) {
+      node.setAttribute('id', `canvas-item-${role}-${assetId}-${size}-${uid}`);
+    }
   });
 
   // 3. Resolve canvas geometry

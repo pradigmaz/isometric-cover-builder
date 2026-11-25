@@ -24,7 +24,7 @@ import { IsometricTableBackground } from '../components/canvas/IsometricTableBac
 export function renderAssetSvgString(
   assetId: AssetId,
   size: AssetSize = 'L',
-  paletteId: PaletteId = 'warm-pastel',
+  paletteId: PaletteId = 'lavender',
   role: ItemRole = 'foreground'
 ): string {
   const entry = ASSET_REGISTRY[assetId];
@@ -121,7 +121,7 @@ export function renderCoverSvgString(
             'g',
             {
               key: item.uid,
-              id: `canvas-item-${item.uid}`,
+              id: `canvas-item-${item.role}-${item.assetId}-${item.size}-${item.uid}`,
               transform,
               opacity: effectiveOpacity,
             },

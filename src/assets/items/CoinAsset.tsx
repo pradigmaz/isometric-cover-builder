@@ -149,19 +149,10 @@ const PATHS: Array<{ d: string; fill: string }> = [
 const TOKEN_PRIMARY = 'var(--token-primary)';
 const TOKEN_SECONDARY = 'var(--token-secondary)';
 const TOKEN_LIGHT = 'var(--token-light)';
-const TOKEN_SURFACE = 'var(--token-surface)';
 
 export function getCoinFill(fill: string, isGhost: boolean): string {
   if (isGhost) {
-    switch (fill) {
-      case 'black':
-        return TOKEN_SECONDARY;
-      case 'white':
-        return TOKEN_LIGHT;
-      case 'primary':
-      default:
-        return TOKEN_SURFACE;
-    }
+    return getAssetFill(fill, true);
   }
 
   switch (fill) {

@@ -30,21 +30,6 @@
             (event.filename ? '\n' + event.filename + ':' + event.lineno + ':' + event.colno : '') +
             (event.error && event.error.stack ? '\n\n' + event.error.stack : '');
           showGlobalError('Ошибка плагина (Runtime/Script)', detail);
-
-          try {
-            fetch('http://127.0.0.1:9876/plugin-log', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: 'window-error',
-                message: event.message,
-                filename: event.filename,
-                lineno: event.lineno,
-                stack: event.error && event.error.stack,
-                time: Date.now()
-              })
-            }).catch(function() {});
-          } catch (e) {}
         });
 
         window.addEventListener('unhandledrejection', function(event) {
@@ -52,18 +37,6 @@
           var reason = event.reason;
           var detail = (reason && (reason.stack || reason.message)) ? (reason.stack || reason.message) : String(reason);
           showGlobalError('Необработанный Promise rejection', detail);
-
-          try {
-            fetch('http://127.0.0.1:9876/plugin-log', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: 'unhandled-rejection',
-                reason: detail,
-                time: Date.now()
-              })
-            }).catch(function() {});
-          } catch (e) {}
         });
       })();
     </script>

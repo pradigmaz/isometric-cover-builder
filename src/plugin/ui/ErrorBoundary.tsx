@@ -24,22 +24,6 @@ export class ErrorBoundary extends Component<Props, State> {
   public override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[Figma Plugin React Error]', error, errorInfo);
     this.setState({ error, errorInfo });
-
-    try {
-      fetch('http://127.0.0.1:9876/plugin-log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'react-error',
-          message: error.message,
-          stack: error.stack,
-          componentStack: errorInfo.componentStack,
-          time: Date.now(),
-        }),
-      }).catch(() => {});
-    } catch {
-      // Ignore network failure for debug bridge
-    }
   }
 
   private handleReset = () => {

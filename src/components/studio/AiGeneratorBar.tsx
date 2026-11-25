@@ -65,7 +65,7 @@ export const AiGeneratorBar: React.FC<AiGeneratorBarProps> = ({ className = '' }
       await generateCover({
         prompt: text || 'Изометрическая иллюстрация',
         layoutMode,
-        paletteId: 'auto',
+        paletteId: paletteId.startsWith('custom') ? paletteId : 'auto',
         includeBackgrounds,
         seed: Math.floor(Math.random() * 1000000) + 1,
       });
@@ -78,11 +78,13 @@ export const AiGeneratorBar: React.FC<AiGeneratorBarProps> = ({ className = '' }
     const rawText = activeScenario === 1 ? scenario1Prompt : scenario2Prompt;
     const fallback = activeScenario === 1 ? 'Финтех и безопасность' : 'папка, кошелёк, монета';
     const activeText = rawText.trim() || fallback;
+    const layoutOrder: Array<'centered' | 'offset' | 'headline'> = ['centered', 'offset', 'headline'];
+    const nextLayout = layoutOrder[(layoutOrder.indexOf(layoutMode) + 1) % layoutOrder.length];
     try {
       await generateCover({
         prompt: activeText,
-        layoutMode,
-        paletteId: 'auto',
+        layoutMode: nextLayout,
+        paletteId: paletteId.startsWith('custom') ? paletteId : 'auto',
         includeBackgrounds,
         seed: Math.floor(Math.random() * 1000000) + 1,
       });
@@ -203,7 +205,11 @@ export const AiGeneratorBar: React.FC<AiGeneratorBarProps> = ({ className = '' }
             </p>
             <div className="flex flex-wrap gap-1 pt-0.5">
               {LIBRARY_ASSETS.map((asset) => {
-                const isSelected = scenario2Prompt.toLowerCase().includes(asset.label);
+                const normalizedPrompt = scenario2Prompt.toLowerCase().replace(/ё/g, 'е');
+                const normalizedLabel = asset.label.replace(/ё/g, 'е');
+                const isSelected = asset.id === 'puzzle'
+                  ? normalizedPrompt.includes('пазл')
+                  : normalizedPrompt.includes(normalizedLabel);
                 return (
                   <button
                     key={asset.id}
@@ -226,7 +232,7 @@ export const AiGeneratorBar: React.FC<AiGeneratorBarProps> = ({ className = '' }
 
         {/* Input & Generate Box */}
         <div className="space-y-2">
-          <div className="flex flex-col rounded-lg border border-[var(--border)] dark:border-zinc-700 bg-[var(--bg)] dark:bg-zinc-900 hover:border-[var(--fg-2)] dark:hover:border-zinc-600 focus-within:border-[var(--accent)] focus-within:bg-white transition-colors overflow-hidden">
+          <div className="flex flex-col rounded-lg border border-[var(--border)] dark:border-zinc-700 bg-[var(--bg)] dark:bg-zinc-900 hover:border-[var(--fg-2)] dark:hover:border-zinc-600 focus-within:border-[var(--accent)] focus-within:bg-white dark:focus-within:bg-zinc-900 transition-colors overflow-hidden">
             <div className="flex items-center px-2.5 py-1.5">
               <Search className="w-3.5 h-3.5 text-[var(--fg-2)] dark:text-zinc-500 mr-2 shrink-0 pointer-events-none" />
               <input

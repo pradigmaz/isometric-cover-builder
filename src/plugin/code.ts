@@ -1,14 +1,6 @@
 /// <reference types="@figma/plugin-typings" />
 import type { PluginMessage } from './types';
 
-// Show Figma Plugin UI iframe
-figma.showUI(__html__, {
-  width: 440,
-  height: 680,
-  themeColors: true,
-  title: 'Isometric Cover Builder',
-});
-
 const ASSET_NAME_MAP: Record<string, string> = {
   smartphone: 'Smartphone',
   notepad: 'Notepad',
@@ -24,17 +16,28 @@ const ASSET_NAME_MAP: Record<string, string> = {
   pen: 'Pen',
 };
 
-function resolveItemDisplayName(rawName: string, fallbackAssetId?: string, fallbackSize?: string): string {
+const STRUCTURED_ITEM_ID_RE = /^canvas-item-(foreground|ghost)-([a-z_]+)-([ls])-(.+)$/i;
+
+export function resolveItemDisplayName(rawName: string, fallbackAssetId?: string, fallbackSize?: string): string {
+  const structured = rawName.match(STRUCTURED_ITEM_ID_RE);
+  if (structured) {
+    const assetKey = structured[2].toLowerCase();
+    const foundName = ASSET_NAME_MAP[assetKey] || (fallbackAssetId && ASSET_NAME_MAP[fallbackAssetId.toLowerCase()]) || 'Object';
+    const size = structured[3].toUpperCase();
+    return `[Item] ${foundName} ${size}`;
+  }
+
   const lower = rawName.toLowerCase();
   let foundName = '';
-  for (const [id, en] of Object.entries(ASSET_NAME_MAP)) {
-    if (lower.includes(id)) {
-      foundName = en;
-      break;
-    }
-  }
-  if (!foundName && fallbackAssetId && ASSET_NAME_MAP[fallbackAssetId.toLowerCase()]) {
+  if (fallbackAssetId && ASSET_NAME_MAP[fallbackAssetId.toLowerCase()]) {
     foundName = ASSET_NAME_MAP[fallbackAssetId.toLowerCase()];
+  } else {
+    for (const [id, en] of Object.entries(ASSET_NAME_MAP)) {
+      if (lower.includes(id)) {
+        foundName = en;
+        break;
+      }
+    }
   }
   if (!foundName) {
     foundName = 'Object';
@@ -46,8 +49,17 @@ function resolveItemDisplayName(rawName: string, fallbackAssetId?: string, fallb
   return `[Item] ${foundName} ${size}`;
 }
 
-// Listen for messages from Plugin UI iframe
-figma.ui.onmessage = async (msg: PluginMessage) => {
+if (typeof figma !== 'undefined') {
+  // Show Figma Plugin UI iframe
+  figma.showUI(__html__, {
+    width: 440,
+    height: 680,
+    themeColors: true,
+    title: 'Isometric Cover Builder',
+  });
+
+  // Listen for messages from Plugin UI iframe
+  figma.ui.onmessage = async (msg: PluginMessage) => {
   if (!msg || !msg.type) return;
 
   switch (msg.type) {
@@ -113,10 +125,21 @@ figma.ui.onmessage = async (msg: PluginMessage) => {
         // Separate items into ghost (Background Objects) and foreground (Foreground Objects)
         const bgItemNodes: SceneNode[] = [];
         const fgItemNodes: SceneNode[] = [];
+        const payloadItems = msg.payload.items || [];
 
-        itemNodes.forEach((node) => {
-          const isGhost = node.name.toLowerCase().includes('ghost') || node.name.toLowerCase().includes('background');
-          node.name = resolveItemDisplayName(node.name);
+        itemNodes.forEach((node, idx) => {
+          const rawName = node.name || '';
+          const structured = rawName.match(STRUCTURED_ITEM_ID_RE);
+          const matchedMeta = structured
+            ? payloadItems.find((it) => it.uid === structured[4])
+            : payloadItems.find((it) => rawName.includes(it.uid)) ||
+              (payloadItems.length === itemNodes.length ? payloadItems[idx] : undefined);
+          const isGhost = structured
+            ? structured[1].toLowerCase() === 'ghost'
+            : matchedMeta
+              ? matchedMeta.role === 'ghost'
+              : rawName.toLowerCase().includes('ghost') || rawName.toLowerCase().includes('background');
+          node.name = resolveItemDisplayName(rawName, matchedMeta?.assetId, matchedMeta?.size);
 
           if (isGhost) {
             bgItemNodes.push(node);
@@ -166,9 +189,6 @@ figma.ui.onmessage = async (msg: PluginMessage) => {
         const isGhost = role === 'ghost';
         const resolvedName = isGhost ? `${baseName} (Ghost)` : baseName;
         itemNode.name = resolvedName;
-        if (isGhost) {
-          itemNode.opacity = 0.22;
-        }
 
         const center = figma.viewport.center;
         itemNode.x = Math.round(center.x - itemNode.width / 2);
@@ -208,4 +228,5 @@ figma.ui.onmessage = async (msg: PluginMessage) => {
     default:
       console.warn('Unhandled plugin message:', msg);
   }
-};
+  };
+}

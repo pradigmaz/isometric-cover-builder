@@ -4,17 +4,6 @@ import {
 } from '../../types/schema';
 import { generateCover } from '../generator';
 import {
-  composeOfflineHeuristic,
-  createPrng,
-  hashString,
-  recommendPalette,
-  resolveCollisions,
-  resolveLayoutMode,
-  scoreAssets,
-  SEMANTIC_DICTIONARY,
-  tokenizePrompt,
-} from './heuristics';
-import {
   buildLlmPrompt,
   callLlmComposition,
   LlmAdapterConfig,
@@ -22,20 +11,10 @@ import {
 } from './llm-adapter';
 
 export {
-  composeOfflineHeuristic,
-  createPrng,
-  hashString,
-  recommendPalette,
-  resolveCollisions,
-  resolveLayoutMode,
-  scoreAssets,
-  SEMANTIC_DICTIONARY,
-  tokenizePrompt,
   buildLlmPrompt,
   callLlmComposition,
   parseAndValidateLlmResponse,
 };
-export type { SemanticDictionaryEntry } from './heuristics';
 export type { LlmAdapterConfig } from './llm-adapter';
 
 export interface ComposeCoverOptions {

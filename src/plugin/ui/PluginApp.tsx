@@ -80,10 +80,6 @@ export const PluginApp: React.FC = () => {
 
   const handleFormatChange = (newFormat: CanvasFormatId) => {
     setFormat(newFormat);
-    if (activeStoryId) {
-      const rawItems = getCanonicalComposition(activeStoryId, newFormat);
-      setItems(rearrangeItemsForLayout(rawItems, layoutMode, newFormat));
-    }
   };
 
   const handleLayoutModeChange = (mode: LayoutMode) => {
@@ -113,8 +109,8 @@ export const PluginApp: React.FC = () => {
   };
 
   const handleRandomComposition = async () => {
-    const layoutOptions: LayoutMode[] = ['centered', 'offset', 'headline'];
-    const chosenLayout = layoutOptions[Math.floor(Math.random() * layoutOptions.length)];
+    const layoutOrder: LayoutMode[] = ['centered', 'offset', 'headline'];
+    const nextLayout = layoutOrder[(layoutOrder.indexOf(layoutMode) + 1) % layoutOrder.length];
     const randomPresets = [
       'Финтех и безопасность',
       'UX дизайн',
@@ -127,14 +123,14 @@ export const PluginApp: React.FC = () => {
       'наушники, цветы',
       'лампа, кошелёк, монета',
     ];
-    const text = prompt.trim() || randomPresets[Math.floor(Math.random() * randomPresets.length)];
+    const candidates = randomPresets.filter((p) => p !== prompt.trim());
+    const text = candidates[Math.floor(Math.random() * candidates.length)] || randomPresets[0];
     setPrompt(text);
     setActiveStoryId(null);
-    setLayoutMode(chosenLayout);
     await generateCover({
       prompt: text,
-      layoutMode: chosenLayout,
-      paletteId: 'auto',
+      layoutMode: nextLayout,
+      paletteId: paletteId.startsWith('custom') ? paletteId : 'auto',
       includeBackgrounds,
       seed: Math.floor(Math.random() * 1000000) + 1,
     });
@@ -283,7 +279,11 @@ export const PluginApp: React.FC = () => {
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {LIBRARY_ASSET_CHIPS.map((asset) => {
-                    const isSelected = prompt.toLowerCase().includes(asset.label);
+                    const normalizedPrompt = prompt.toLowerCase().replace(/ё/g, 'е');
+                    const normalizedLabel = asset.label.replace(/ё/g, 'е');
+                    const isSelected = asset.id === 'puzzle'
+                      ? normalizedPrompt.includes('пазл')
+                      : normalizedPrompt.includes(normalizedLabel);
                     return (
                       <button key={asset.id} onClick={() => handleToggleComponentChip(asset.label)} className={`px-1.5 py-0.5 rounded text-[10px] border transition-colors cursor-pointer ${isSelected ? 'border-[#0d99ff] bg-[#0d99ff]/20 text-white font-medium' : 'border-[#383838] bg-[#1e1e1e] text-stone-300 hover:border-stone-500'}`}>
                         {isSelected ? `✓ ${asset.nameRu}` : `+ ${asset.nameRu}`}

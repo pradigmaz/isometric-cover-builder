@@ -181,7 +181,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ className }) => 
               }`}
             >
               <EyeOff className="w-3.5 h-3.5" />
-              <span>Силуэт (22%)</span>
+              <span>Силуэт</span>
             </button>
           </div>
         </div>

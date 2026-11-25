@@ -87,7 +87,7 @@ export const FloatingActionToolbar: React.FC<FloatingActionToolbarProps> = ({
   });
 
   const recomputePosition = useCallback(() => {
-    const itemEl = document.getElementById(`canvas-item-${item.uid}`);
+    const itemEl = document.querySelector(`[data-uid="${item.uid}"]`) || document.getElementById(`canvas-item-${item.uid}`);
     const containerEl =
       containerRef?.current ||
       (itemEl?.closest('.relative') as HTMLElement | null) ||

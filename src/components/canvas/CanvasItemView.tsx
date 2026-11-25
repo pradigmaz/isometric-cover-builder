@@ -6,7 +6,6 @@ export interface CanvasItemViewProps {
   item: CanvasItem;
   isSelected?: boolean;
   isDragging?: boolean;
-  onSelect: (uid: string, e: React.PointerEvent) => void;
   onItemPointerDown: (item: CanvasItem, e: React.PointerEvent) => void;
 }
 
@@ -14,7 +13,6 @@ export const CanvasItemView: React.FC<CanvasItemViewProps> = memo(({
   item,
   isSelected = false,
   isDragging = false,
-  onSelect,
   onItemPointerDown,
 }) => {
   const AssetComponent = getAssetComponent(item.assetId);
@@ -30,9 +28,11 @@ export const CanvasItemView: React.FC<CanvasItemViewProps> = memo(({
 
   return (
     <g
-      id={`canvas-item-${item.uid}`}
+      id={`canvas-item-${item.role}-${item.assetId}-${item.size}-${item.uid}`}
       data-uid={item.uid}
       data-role={item.role}
+      data-asset-id={item.assetId}
+      data-size={item.size}
       data-selected={isSelected}
       transform={transform}
       opacity={effectiveOpacity}
@@ -43,7 +43,6 @@ export const CanvasItemView: React.FC<CanvasItemViewProps> = memo(({
       }}
       onPointerDown={(e) => {
         e.stopPropagation();
-        onSelect(item.uid, e);
         onItemPointerDown(item, e);
       }}
     >

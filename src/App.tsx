@@ -13,7 +13,7 @@ import {
   CanonicalCompositionId,
   getCanonicalComposition,
 } from './engine/canonicalCompositions';
-import { CanvasFormatId } from './types/schema';
+import { CanvasFormatId, PaletteId } from './types/schema';
 import { PanelLeft, PanelRight, LayoutGrid, Box, X, Sparkles } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -71,6 +71,10 @@ export const App: React.FC = () => {
         if (comp.recommendedPalette) {
           useCanvasStore.getState().setPalette(comp.recommendedPalette);
         }
+      }
+      const urlPalette = params.get('palette') as PaletteId | null;
+      if (urlPalette && (urlPalette === 'lavender' || urlPalette === 'peach-mint' || urlPalette === 'turquoise-purple')) {
+        useCanvasStore.getState().setPalette(urlPalette);
       }
     }
   }, []);

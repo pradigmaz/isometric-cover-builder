@@ -56,7 +56,7 @@ const METAPHOR_DOMAINS: MetaphorDomainDef[] = [
   {
     keywords: ['finance', 'banking', 'corporate', 'accounting', 'tax', 'report', 'финансы', 'банк', 'бухгалтерия', 'отчет', 'отчётность', 'налоги', 'корпоратив'],
     canonical: 'folder-wallet-coin',
-    alternates: ['folder-wallet-coin', 'book-phone', 'book-puzzles-pen', 'lamp-wallet-coin'],
+    alternates: ['folder-wallet-coin', 'book-puzzles-pen', 'lamp-wallet-coin'],
   },
   {
     keywords: ['music', 'podcast', 'audio', 'sound', 'lifestyle', 'calm', 'музыка', 'подкаст', 'аудио', 'звук', 'лайфстайл', 'трек', 'релакс'],
@@ -66,7 +66,7 @@ const METAPHOR_DOMAINS: MetaphorDomainDef[] = [
   {
     keywords: ['fintech', 'venture', 'crypto', 'startup', 'investment', 'capital', 'финтех', 'стартап', 'инвестиции', 'венчур', 'крипта', 'капитал'],
     canonical: 'lamp-wallet-coin',
-    alternates: ['lamp-wallet-coin', 'folder-wallet-coin', 'phone-puzzles', 'book-phone'],
+    alternates: ['lamp-wallet-coin', 'folder-wallet-coin', 'phone-puzzles'],
   },
   {
     keywords: ['creative', 'design', 'strategy', 'writing', 'editorial', 'story', 'author', 'креатив', 'творчество', 'стратегия', 'дизайн', 'статья', 'писатель', 'копирайтинг'],
@@ -246,6 +246,104 @@ function applyIncludeBackgrounds(items: CanvasItem[], includeBackgrounds?: boole
   return [{ ...items[0], role: 'foreground', opacity: 1 }];
 }
 
+function buildSeededCanonicalComposition(
+  pairingConfig: CanonicalCompositionConfig,
+  request: AICompositionRequest,
+  format: CanvasFormatId,
+  resolvedLayout: LayoutMode
+): AICompositionResponse {
+  const seed = request.seed!;
+  const baseItems = applyIncludeBackgrounds(
+    getCanonicalComposition(pairingConfig.id, format),
+    request.includeBackgrounds
+  );
+
+  let itemsWithBg = baseItems;
+  if (Math.abs(seed) % 3 === 2) {
+    if (pairingConfig.id === 'phone-puzzles' && itemsWithBg.length >= 2) {
+      const phoneIdx = itemsWithBg.findIndex((it) => it.assetId === 'smartphone');
+      const puzzleIdx = itemsWithBg.findIndex((it) => it.assetId === 'puzzle');
+      if (phoneIdx !== -1 && puzzleIdx !== -1) {
+        const phonePos = { x: itemsWithBg[phoneIdx].x, y: itemsWithBg[phoneIdx].y };
+        const puzzlePos = { x: itemsWithBg[puzzleIdx].x, y: itemsWithBg[puzzleIdx].y };
+        itemsWithBg = itemsWithBg.map((it, idx) => {
+          if (idx === phoneIdx) return { ...it, x: puzzlePos.x, y: puzzlePos.y };
+          if (idx === puzzleIdx) return { ...it, x: phonePos.x, y: phonePos.y };
+          return it;
+        });
+      }
+    } else if (pairingConfig.id === 'book-phone') {
+      const phoneIdx = itemsWithBg.findIndex((it) => it.assetId === 'smartphone');
+      if (phoneIdx !== -1) {
+        const phone = itemsWithBg[phoneIdx];
+        const stepScale = (phone.scale || 1.45) / 1.45;
+        const dx = Math.round(110 * stepScale);
+        const dy = Math.round(55 * stepScale);
+        itemsWithBg = itemsWithBg.map((it, idx) =>
+          idx === phoneIdx ? { ...it, x: it.x + dx, y: it.y + dy } : it
+        );
+      }
+    }
+  }
+
+  if (
+    request.includeBackgrounds !== false &&
+    !itemsWithBg.some((it) => it.role === 'ghost') &&
+    Math.abs(seed) % 2 === 1
+  ) {
+    const rearBaseIdx = itemsWithBg.findIndex(
+      (it) => it.assetId === 'notepad' || it.assetId === 'folder'
+    );
+    if (rearBaseIdx !== -1) {
+      itemsWithBg = itemsWithBg.map((it, idx) =>
+        idx === rearBaseIdx
+          ? { ...it, role: 'ghost', manualLayerOffset: -2, opacity: 0.22 }
+          : it
+      );
+    } else if (itemsWithBg.length === 2) {
+      const lowerPrompt = request.prompt.toLowerCase();
+      const isCreativeOrMusic =
+        /(music|podcast|audio|sound|lifestyle|calm|creative|design|музык|подкаст|аудио|звук|лайфстайл|релакс|креатив|дизайн|творч)/.test(
+          lowerPrompt
+        );
+      const bgAssetId: AssetId = isCreativeOrMusic ? 'flowers_vase' : 'lamp';
+      if (!itemsWithBg.some((it) => it.assetId === bgAssetId)) {
+        const anchor = itemsWithBg[0];
+        const offset = Math.round(160 * ((anchor.scale || 1.6) / 1.6));
+        const ghostItem: CanvasItem = {
+          uid: `canonical-${pairingConfig.id}-bg-${bgAssetId}-${Math.abs(seed)}`,
+          assetId: bgAssetId,
+          size: 'L',
+          role: 'ghost',
+          x: Math.round(anchor.x - offset),
+          y: Math.round(anchor.y - offset),
+          zHeight: 0,
+          rotation: 0,
+          scale: Number(((anchor.scale || 1.6) * 0.95).toFixed(2)),
+          opacity: 0.22,
+          manualLayerOffset: -2,
+        };
+        itemsWithBg = enforceAntiClumping([ghostItem, ...itemsWithBg], format);
+      }
+    }
+  }
+
+  const arranged = rearrangeItemsForLayout(itemsWithBg, resolvedLayout, format);
+  const items = clampItemsToArtboard(
+    enforceAntiClumping(applySeedVariation(arranged, seed), format),
+    format
+  );
+  const recommendedPalette: PaletteId = resolveDynamicPalette(seed, request.paletteId);
+
+  return {
+    items,
+    recommendedPalette,
+    resolvedLayout,
+    rationale: `Вариация пары #${pairingConfig.pairingNumber}: «${pairingConfig.titleRu}» (${pairingConfig.descriptionRu}).`,
+    source: 'offline-heuristic',
+  };
+}
+
 export function generateCover(request: AICompositionRequest): AICompositionResponse {
   const format: CanvasFormatId = request.format || '1:1';
   const resolvedLayout: LayoutMode =
@@ -254,12 +352,6 @@ export function generateCover(request: AICompositionRequest): AICompositionRespo
       : format === '1:1' ? 'centered' : 'headline';
 
   const componentRequests = parseComponentRequests(request.prompt);
-  const parsedNames = parseComponentNames(request.prompt);
-  for (const assetId of parsedNames) {
-    if (!componentRequests.some((r) => r.assetId === assetId)) {
-      componentRequests.push({ assetId });
-    }
-  }
   const assetIds = componentRequests.map((r) => r.assetId);
 
   // 1. If assets match a canonical pairing:
@@ -267,26 +359,7 @@ export function generateCover(request: AICompositionRequest): AICompositionRespo
   if (canonicalId) {
     const pairingConfig = CANONICAL_COMPOSITIONS[canonicalId];
     if (request.seed !== undefined && request.seed !== 0) {
-      const rawItems = composeSmartHierarchy(
-        componentRequests,
-        format,
-        resolvedLayout,
-        request.includeBackgrounds,
-        request.seed
-      );
-      const items = clampItemsToArtboard(
-        enforceAntiClumping(applySeedVariation(rawItems, request.seed), format),
-        format
-      );
-      const recommendedPalette: PaletteId = resolveDynamicPalette(request.seed, request.paletteId);
-
-      return {
-        items,
-        recommendedPalette,
-        resolvedLayout,
-        rationale: `Вариация пары #${pairingConfig.pairingNumber}: «${pairingConfig.titleRu}» (${pairingConfig.descriptionRu}).`,
-        source: 'offline-heuristic',
-      };
+      return buildSeededCanonicalComposition(pairingConfig, request, format, resolvedLayout);
     }
 
     const rawItems = applyIncludeBackgrounds(
@@ -337,35 +410,7 @@ export function generateCover(request: AICompositionRequest): AICompositionRespo
   // 3. Fallback to metaphor resolver:
   const pairingConfig = resolveCanonicalPairing(request.prompt, request.seed);
   if (request.seed !== undefined && request.seed !== 0) {
-    const canonicalItems = getCanonicalComposition(pairingConfig.id, format);
-    const metaphorRequests: ParsedItemRequest[] = canonicalItems.map((it) => ({ assetId: it.assetId }));
-    if (
-      request.includeBackgrounds !== false &&
-      metaphorRequests.length === 2 &&
-      !metaphorRequests.some((r) => r.assetId === 'lamp' || r.assetId === 'flowers_vase')
-    ) {
-      metaphorRequests.push({ assetId: Math.abs(request.seed) % 2 === 0 ? 'lamp' : 'flowers_vase' });
-    }
-    const rawItems = composeSmartHierarchy(
-      metaphorRequests,
-      format,
-      resolvedLayout,
-      request.includeBackgrounds,
-      request.seed
-    );
-    const items = clampItemsToArtboard(
-      enforceAntiClumping(applySeedVariation(rawItems, request.seed), format),
-      format
-    );
-    const recommendedPalette: PaletteId = resolveDynamicPalette(request.seed, request.paletteId);
-
-    return {
-      items,
-      recommendedPalette,
-      resolvedLayout,
-      rationale: `Вариация пары #${pairingConfig.pairingNumber}: «${pairingConfig.titleRu}» (${pairingConfig.descriptionRu}).`,
-      source: 'offline-heuristic',
-    };
+    return buildSeededCanonicalComposition(pairingConfig, request, format, resolvedLayout);
   }
 
   const rawItems = applyIncludeBackgrounds(

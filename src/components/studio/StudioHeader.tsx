@@ -9,12 +9,14 @@ import {
   ChevronDown,
   Check,
   Figma,
+  Upload,
 } from 'lucide-react';
 import { CanvasFormatId, PaletteId } from '../../types/schema';
 import { PALETTE_PRESETS } from '../../config/palettes';
 import { useCanvasStore } from '../../store/canvasStore';
 import { exportSvg, exportPng } from '../../engine/exporter';
-import { FigmaIntegrationModal } from './FigmaIntegrationModal';
+import { FigmaIntegrationModal } from '../header/FigmaIntegrationModal';
+import { PaletteUploadModal } from './PaletteUploadModal';
 import { ThemeToggle } from './ThemeToggle';
 
 const FORMAT_OPTIONS: Array<{
@@ -37,6 +39,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({ onOpenFigmaModal }) 
   const setFormat = useCanvasStore((state) => state.setFormat);
   const paletteId = useCanvasStore((state) => state.paletteId);
   const setPalette = useCanvasStore((state) => state.setPalette);
+  const customPalette = useCanvasStore((state) => state.customPalette);
 
   const snapToGrid = useCanvasStore((state) => state.snapToGrid);
   const toggleSnapToGrid = useCanvasStore((state) => state.toggleSnapToGrid);
@@ -55,6 +58,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({ onOpenFigmaModal }) 
 
   const [isExporting, setIsExporting] = useState(false);
   const [isFigmaModalOpen, setIsFigmaModalOpen] = useState(false);
+  const [isPaletteModalOpen, setIsPaletteModalOpen] = useState(false);
 
   const closeExportPopover = () => {
     const popover = document.getElementById('export-popover');
@@ -190,6 +194,44 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({ onOpenFigmaModal }) 
             </button>
           );
         })}
+
+        {customPalette && (
+          <button
+            type="button"
+            onClick={() => setPalette(customPalette.id)}
+            className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
+              paletteId === customPalette.id
+                ? 'bg-[var(--bg)] text-[var(--fg)] shadow-xs font-semibold ring-1 ring-[var(--border)] dark:bg-zinc-800 dark:text-zinc-100 dark:ring-zinc-700'
+                : 'text-[var(--fg-2)] hover:text-[var(--fg)] dark:text-zinc-400 dark:hover:text-zinc-100'
+            }`}
+            title={`Палитра: ${customPalette.name}`}
+            aria-label={`Палитра ${customPalette.name}`}
+          >
+            <div className="flex -space-x-1 items-center">
+              {customPalette.figmaSwatches.map((color, idx) => (
+                <span
+                  key={idx}
+                  className="w-2.5 h-2.5 rounded-full border border-[var(--border)] shadow-2xs"
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+            <span className="hidden 2xl:inline text-[11px] whitespace-nowrap max-w-[84px] truncate">
+              {customPalette.name}
+            </span>
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setIsPaletteModalOpen(true)}
+          className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-[var(--fg-2)] hover:text-[var(--fg)] hover:bg-[var(--bg)]/60 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800/60 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+          title="Загрузить свою палитру"
+          aria-label="Загрузить свою палитру"
+        >
+          <Upload className="w-3 h-3" />
+          <span className="whitespace-nowrap">Загрузить</span>
+        </button>
       </div>
 
       {/* 4. Tools: Undo/Redo, Grid, Snap, Viewport */}
@@ -361,6 +403,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({ onOpenFigmaModal }) 
       {!onOpenFigmaModal && (
         <FigmaIntegrationModal isOpen={isFigmaModalOpen} onClose={() => setIsFigmaModalOpen(false)} />
       )}
+      <PaletteUploadModal isOpen={isPaletteModalOpen} onClose={() => setIsPaletteModalOpen(false)} />
     </header>
   );
 };

@@ -46,7 +46,7 @@ const FORMAT_CONFIGS: Record<CanvasFormatId, FormatLayoutConfig> = {
   og: { center: { x: 600, y: 320 }, heroScale: 1.55, satelliteScale: 1.30, stepDx: 220, stepDy: 127 },
 };
 
-const UNIFORM_SCALE_BY_FORMAT: Record<CanvasFormatId, number> = {
+export const UNIFORM_SCALE_BY_FORMAT: Record<CanvasFormatId, number> = {
   '1:1': 1.45,
   '16:9': 1.45,
   '9:16': 2.5,
@@ -136,9 +136,36 @@ export function enforceAntiClumping(
       for (let j = i + 1; j < result.length; j++) {
         const a = result[i];
         const b = result[j];
-        if (a.role === 'ghost' || b.role === 'ghost') continue;
-        if ((a.manualLayerOffset ?? 0) > 0 && ['notepad', 'folder'].includes(b.assetId)) continue;
-        if ((b.manualLayerOffset ?? 0) > 0 && ['notepad', 'folder'].includes(a.assetId)) continue;
+        if (a.role === 'ghost' && b.role === 'ghost') continue;
+
+        const oneIsGhost = a.role === 'ghost' || b.role === 'ghost';
+        if (!oneIsGhost) {
+          if ((a.manualLayerOffset ?? 0) > 0 && ['notepad', 'folder'].includes(b.assetId)) continue;
+          if ((b.manualLayerOffset ?? 0) > 0 && ['notepad', 'folder'].includes(a.assetId)) continue;
+        }
+
+        if (oneIsGhost) {
+          const ghostIdx = a.role === 'ghost' ? i : j;
+          const fgIdx = a.role === 'ghost' ? j : i;
+          const ghost = result[ghostIdx];
+          const fg = result[fgIdx];
+          const dx = ghost.x - fg.x;
+          const dy = ghost.y - fg.y;
+          const dist = Math.hypot(dx, dy);
+
+          if (dist < minDist) {
+            shifted = true;
+            const overlap = minDist - dist;
+            // Push only the ghost item away, preferring up-left rear background direction
+            const angle = dist > 0.001 && dy <= 0 ? Math.atan2(dy, dx) : -Math.PI * 0.75;
+            result[ghostIdx] = {
+              ...ghost,
+              x: ghost.x + Math.round(Math.cos(angle) * (overlap + 15)),
+              y: ghost.y + Math.round(Math.sin(angle) * (overlap + 15)),
+            };
+          }
+          continue;
+        }
 
         const dx = b.x - a.x;
         const dy = b.y - a.y;
@@ -181,11 +208,6 @@ export function composeSmartHierarchy(
   const middles = requests.filter((r) => getAssetHierarchy(r.assetId) === 'middle');
   const foregrounds = requests.filter((r) => getAssetHierarchy(r.assetId) === 'foreground');
 
-  let sizeProfile: 'hero-satellite' | 'isometric-duo' = 'hero-satellite';
-  if (effectiveSeed !== undefined && (effectiveSeed % 5 === 1 || (requests.length === 2 && effectiveSeed % 2 === 1))) {
-    sizeProfile = 'isometric-duo';
-  }
-
   let heroIdx = 0;
   // Prefer major anchor items (device, base, middle) as Hero over small accents
   const primaryCandidates = requests
@@ -207,17 +229,13 @@ export function composeSmartHierarchy(
 
   const result: CanvasItem[] = [];
 
-  const computeItemScale = (req: ParsedItemRequest, isHero: boolean, isCoHero: boolean): { scale: number; size: AssetSize } => {
+  const computeItemScale = (req: ParsedItemRequest): { scale: number; size: AssetSize } => {
     if (req.size === 'S') return { scale: uniformScale, size: 'S' };
     if (req.size === 'L') return { scale: uniformScale, size: 'L' };
-    if (['coin', 'puzzle', 'pen'].includes(req.assetId)) {
+    if (req.assetId === 'coin') {
       return { scale: uniformScale, size: 'S' };
     }
-    if (isHero || (sizeProfile === 'isometric-duo' && isCoHero)) {
-      return { scale: uniformScale, size: 'L' };
-    }
-    // Non-hero secondary items use authentic S variant when >= 3 items for diversity
-    return { scale: uniformScale, size: requests.length >= 3 ? 'S' : 'L' };
+    return { scale: uniformScale, size: 'L' };
   };
 
   if (bases.length > 0 && archetype === 'substrate-platform') {
@@ -225,7 +243,7 @@ export function composeSmartHierarchy(
     const baseCoords = format === '9:16'
       ? { x: centerX - cfg.stepDx * 0.4, y: centerY - cfg.stepDy * 0.6 }
       : { x: centerX - cfg.stepDx * 0.35, y: centerY + cfg.stepDy * 0.15 };
-    const { scale: bScale, size: bSize } = computeItemScale(primaryBase, heroIdx === requests.indexOf(primaryBase), false);
+    const { scale: bScale, size: bSize } = computeItemScale(primaryBase);
 
     const baseIsGhost =
       includeBackgrounds &&
@@ -245,7 +263,7 @@ export function composeSmartHierarchy(
     backgrounds.forEach((bg, idx) => {
       const bgX = baseCoords.x - cfg.stepDx * (0.75 + idx * 0.6);
       const bgY = format === '9:16' ? baseCoords.y - cfg.stepDy * (1.4 + idx * 0.4) : baseCoords.y - cfg.stepDy * (1.2 + idx * 0.3);
-      const { scale: bgScale, size: bgSize } = computeItemScale(bg, heroIdx === requests.indexOf(bg), false);
+      const { scale: bgScale, size: bgSize } = computeItemScale(bg);
       result.push({
         uid: `item-${Date.now()}-${result.length}`, assetId: bg.assetId, size: bgSize,
         x: Math.round(bgX), y: Math.round(bgY), zHeight: 0, rotation: 0, scale: bgScale,
@@ -258,8 +276,7 @@ export function composeSmartHierarchy(
     middles.forEach((mid, idx) => {
       const midX = idx === 0 ? baseCoords.x - cfg.stepDx * 1.15 : baseCoords.x + cfg.stepDx * 1.15;
       const midY = baseCoords.y - cfg.stepDy * 0.7;
-      const isHero = heroIdx === requests.indexOf(mid);
-      const { scale: mScale, size: mSize } = computeItemScale(mid, isHero, idx === 0);
+      const { scale: mScale, size: mSize } = computeItemScale(mid);
       result.push({
         uid: `item-${Date.now()}-${result.length}`, assetId: mid.assetId, size: mSize,
         x: Math.round(midX), y: Math.round(midY), zHeight: 0, rotation: 0, scale: mScale,
@@ -272,8 +289,7 @@ export function composeSmartHierarchy(
     const remainingForegrounds = foregrounds.filter((_, i) => i !== pageItemIdx);
 
     if (pageItem) {
-      const isHero = heroIdx === requests.indexOf(pageItem);
-      const { scale: pScale, size: pSize } = computeItemScale(pageItem, isHero, false);
+      const { scale: pScale, size: pSize } = computeItemScale(pageItem);
       result.push({
         uid: `item-${Date.now()}-${result.length}`, assetId: pageItem.assetId, size: pSize,
         x: Math.round(baseCoords.x - 40), y: Math.round(baseCoords.y - 25), zHeight: 0, rotation: 0, scale: pScale,
@@ -282,8 +298,7 @@ export function composeSmartHierarchy(
     }
 
     remainingForegrounds.forEach((fg, idx) => {
-      const isHero = heroIdx === requests.indexOf(fg);
-      const { scale: fgScale, size: fgSize } = computeItemScale(fg, isHero, false);
+      const { scale: fgScale, size: fgSize } = computeItemScale(fg);
       const rotation = fg.assetId === 'pen' ? 30 : 0;
       const fgX = baseCoords.x + cfg.stepDx * (0.95 + idx * 0.3);
       const fgY = baseCoords.y + cfg.stepDy * (fg.assetId === 'pen' ? 0.95 : 0.65 + idx * 0.3);
@@ -301,8 +316,6 @@ export function composeSmartHierarchy(
   }
 
   // Dynamic Archetypes for Non-Base Combinations
-  const coHeroIdx = (heroIdx + 1) % requests.length;
-
   // Determine if any item should be designated as a rear ghost silhouette
   let ghostIdx = -1;
   const ambientIdx = requests.findIndex((r) => getAssetHierarchy(r.assetId) === 'background');
@@ -360,8 +373,6 @@ export function composeSmartHierarchy(
   const layoutDef = archetypeDefs[archetype] || archetypeDefs['cluster-triangle'];
 
   requests.forEach((req, idx) => {
-    const isHero = idx === heroIdx;
-    const isCoHero = idx === coHeroIdx;
     const isGhost = idx === ghostIdx;
 
     let slot: SlotDef;
@@ -382,7 +393,7 @@ export function composeSmartHierarchy(
       manualLayerOffset = slot.offset;
     }
 
-    const { scale, size } = computeItemScale(req, isHero, isCoHero);
+    const { scale, size } = computeItemScale(req);
     const rotation = req.assetId === 'pen' ? 30 : 0;
 
     result.push({

@@ -1,5 +1,5 @@
 import React from 'react';
-import { AssetContainer, type AssetProps } from '../primitives';
+import { AssetContainer, getAssetFill, type AssetProps } from '../primitives';
 
 export type NotepadTokenRole = 'surface' | 'accent' | 'light' | 'secondary';
 
@@ -11,23 +11,12 @@ export type NotepadTokenRole = 'surface' | 'accent' | 'light' | 'secondary';
  *   - Highlights / glare: var(--token-light)
  *   - Spine / cover / contours: var(--token-secondary)
  * - Ghost:
- *   - Pages: var(--token-surface)
- *   - Bookmark ribbon: var(--token-secondary)
- *   - Highlights: var(--token-light)
- *   - Spine / cover: var(--token-secondary)
+ *   - Delegates to getAssetFill(role, true) for soft tonal silhouette tokens
+ *     (var(--token-surface) / var(--token-primary))
  */
 export function getNotepadFill(role: NotepadTokenRole, isGhost: boolean): string {
   if (isGhost) {
-    switch (role) {
-      case 'surface':
-        return 'var(--token-surface)';
-      case 'accent':
-        return 'var(--token-secondary)';
-      case 'light':
-        return 'var(--token-light)';
-      case 'secondary':
-        return 'var(--token-secondary)';
-    }
+    return getAssetFill(role, true);
   }
 
   switch (role) {
